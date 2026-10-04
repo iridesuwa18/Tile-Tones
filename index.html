@@ -79,7 +79,7 @@ h1{letter-spacing:.1em}
 button:disabled{opacity:.5;cursor:default}
 </style></head><body>
 <header>
- <h1>Tile Tones ✦</h1><button class="mk" id="mk">✦ Make a song</button>
+ <h1>Tile Tones ✦</h1><button class="mk" id="mk">✦ Make a song</button><button id="rmx" hidden title="Rebuild the song with new random variations">🎲 Remix</button>
  <input id="name" placeholder="Track name" value="My Track" aria-label="Track name">
  <div class="g"><button class="ib" id="first" title="Go to start" aria-label="Go to start"><svg viewBox="0 0 14 14"><rect x="1" y="2" width="2" height="10"/><polygon points="8,2 4,7 8,12"/><polygon points="13,2 9,7 13,12"/></svg></button><button class="ib" id="prev" title="Previous tile" aria-label="Previous tile"><svg viewBox="0 0 14 14"><rect x="2" y="2" width="2" height="10"/><polygon points="12,2 5,7 12,12"/></svg></button><button class="ib" id="play" title="Play" aria-label="Play"><svg viewBox="0 0 14 14"><polygon points="3,1 12,7 3,13"/></svg></button><button class="ib" id="pause" title="Pause" aria-label="Pause"><svg viewBox="0 0 14 14"><rect x="3" y="2" width="3" height="10"/><rect x="8" y="2" width="3" height="10"/></svg></button><button class="ib" id="stop" title="Stop" aria-label="Stop"><svg viewBox="0 0 14 14"><rect x="3" y="3" width="8" height="8"/></svg></button><button class="ib" id="next" title="Next tile" aria-label="Next tile"><svg viewBox="0 0 14 14"><polygon points="2,2 9,7 2,12"/><rect x="10" y="2" width="2" height="10"/></svg></button><button class="ib" id="last" title="Go to end" aria-label="Go to end"><svg viewBox="0 0 14 14"><polygon points="1,2 5,7 1,12"/><polygon points="6,2 10,7 6,12"/><rect x="11" y="2" width="2" height="10"/></svg></button><button class="ib" id="loop" title="Loop" aria-label="Loop"><svg viewBox="0 0 14 14"><path d="M2 7V3h8M12 7v4H4" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="9,0 14,3 9,6"/><polygon points="5,8 0,11 5,14"/></svg></button>
  </div>
@@ -225,43 +225,105 @@ const FEEL={calm:80,happy:110,energetic:130,sad:70,dreamy:85},PR={pop:'C G Am F'
 const SEC={1:[['Intro',1],['Verse',3],['Chorus',3],['Outro',1]],2:[['Intro',1],['Verse',2],['Chorus',2],['Verse',2],['Chorus',2],['Outro',1]],3:[['Intro',1],['Verse',2],['Chorus',2],['Verse',2],['Chorus',2],['Bridge',1],['Chorus',2],['Outro',1]],4:[['Intro',1],['Verse',2],['Pre',1],['Chorus',2],['Verse',2],['Pre',1],['Chorus',2],['Bridge',2],['Chorus',2],['Chorus',2],['Outro',1]]};
 const IN=[['piano','Piano'],['guitar','Guitar'],['violin','Violin'],['digital','Digital']],fmt=x=>Math.floor(x/60)+':'+String(Math.round(x%60)).padStart(2,'0');
 const np=()=>({s:Array.from({length:4},()=>({n:[],d:1}))}),mp=()=>({A:np(),B:np(),C:np(),D:np()});
-const M={step:1,part:'A',hi:'same',p:{min:3,feel:'dreamy',prog:'emo',inst:'piano'},parts:{mel:mp(),beat:mp(),harm:mp()}};
+const M={step:1,part:'A',hi:'same',p:{min:3,feel:'dreamy',prog:'emo',inst:'piano',vary:2},seed:1,parts:{mel:mp(),beat:mp(),harm:mp()}};
 const XS=['mel','beat','harm'],has=p=>p.s.some(x=>x.n.length),ik=X=>X=='beat'?'drums':X=='harm'&&M.hi!='same'?M.hi:M.p.inst;
 const INFO={mel:['Melody','The tune people hum. Click tiles to place notes, and tap a tile\'s number to change its length. Moving in small steps and ending near where you started makes a loop that repeats smoothly.'],beat:['Drums','Kick is the low boom, snare is the clap, tom is a deep drum, hat is the tick. Try kick on tile 1 and snare on tile 3. Skip all four loops if you don\'t want drums.'],harm:['Harmony','A second line that plays with the melody. Notes two rows below a melody note sound sweet. Pick the same instrument for a blended sound or a different one for a second voice. Skip it if you like.']};
 const PT={A:['A Overall','Your main loop. It plays through the verses and choruses.'],B:['B Intro','Plays at the very start. Optional: if empty, the main loop is used.'],C:['C Outro','Plays at the end. Optional: if empty, the main loop is used.'],D:['D Build-up','Plays before choruses to build energy. Optional.']};
 const sel=(f,o,v)=>`<select data-f="${f}" aria-label="${f}">${o.map(([a,t])=>`<option value="${a}"${v==a?' selected':''}>${t}</option>`).join('')}</select>`;
 function md(){const st=M.step,X=XS[st-2];let h;
- if(st==1)h=`<h2>1. Plan your song</h2><p>Choose the basics. Next you'll make short loops, and the helper assembles the full song from them.</p><div class="row">${sel('min',[[1,'1 min'],[2,'2 min'],[3,'3 min'],[4,'4 min']],M.p.min)}${sel('feel',[['calm','Calm'],['happy','Happy'],['energetic','Energetic'],['sad','Sad'],['dreamy','Dreamy']],M.p.feel)}${sel('prog',[['pop','Bright'],['emo','Emotional'],['classic','Classic'],['drive','Driving']],M.p.prog)}${sel('inst',IN,M.p.inst)}</div>`;
+ if(st==1)h=`<h2>1. Plan your song</h2><p>Choose the basics. Next you'll make short loops, and the helper assembles the full song from them.</p><div class="row">${sel('min',[[1,'1 min'],[2,'2 min'],[3,'3 min'],[4,'4 min']],M.p.min)}${sel('feel',[['calm','Calm'],['happy','Happy'],['energetic','Energetic'],['sad','Sad'],['dreamy','Dreamy']],M.p.feel)}${sel('prog',[['pop','Bright'],['emo','Emotional'],['classic','Classic'],['drive','Driving']],M.p.prog)}${sel('inst',IN,M.p.inst)}${sel('vary',[[0,'No variety (pure loop)'],[1,'A little variety'],[2,'Some variety'],[3,'Lots of variety']],M.p.vary)}</div><p>Variety changes small things each time your loop repeats: a note nudged up or down, extra notes, faster or slower rhythms, and bigger changes in choruses and the bridge.</p>`;
  else{const p=M.parts[X][M.part],R=X=='beat'?4:15,lb=r=>X=='beat'?['Kick','Snare','Tom','Hat'][r]:lab(r,0);
   h=`<h2>${st}. ${INFO[X][0]}</h2><p>${INFO[X][1]}</p><div class="row">${Object.keys(PT).map(k=>`<button class="tab${M.part==k?' act':''}" data-m="tab" data-p="${k}">${PT[k][0]}${has(M.parts[X][k])?' ✓':''}</button>`).join('')}</div><p>${PT[M.part][1]}</p>
   <div class="ed"><div class="bd" style="--c:#ffc2e2;padding:0"><div class="lb"><div class="sp"></div>${Array.from({length:R},(_,r)=>`<div>${lb(r)}</div>`).join('')}</div>${p.s.map((s,i)=>`<div class="col" style="width:40px"><button class="du" data-m="dur" data-i="${i}">${DL[s.d]}</button>${Array.from({length:R},(_,r)=>`<i class="cell${s.n.includes(r)?' on':''}" data-m="cell" data-i="${i}" data-r="${r}"></i>`).join('')}</div>`).join('')}</div></div>
   <div class="row"><select data-f="len" aria-label="Tiles">${[3,4,5,6].map(n=>`<option${p.s.length==n?' selected':''}>${n}</option>`).join('')}</select> tiles<button data-m="pv">▶ Preview</button><button data-m="clr">Clear</button>${X=='harm'?sel('hi',[['same','Same instrument'],...IN],M.hi):''}</div>`}
  $('mp').innerHTML=h+`<div class="row"><button data-m="back">${st==1?'Cancel':'Back'}</button><button class="mk" data-m="next">${st==4?'Make my song':'Next'}</button></div>`}
 const FD=[4,2,1,.5,.25],rest=b=>{const o=[];for(const d of FD)while(b>=d-1e-9){o.push({n:[],d});b-=d}return o};
-function loop(p,b){if(!has(p))return rest(b);const o=[];let t=0;for(let i=0;t<b-1e-9;i=(i+1)%p.s.length){const x=p.s[i],r=b-t;if(x.d<=r+1e-9){o.push({n:[...x.n],d:x.d});t+=x.d}else{const d=FD.find(f=>f<=r+1e-9);o.push({n:[...x.n],d},...rest(r-d));t=b}}return o}
+function loop(p,b,V){if(!has(p))return rest(b);const o=[];let t=0,rep=0;
+ while(t<b-1e-9){const pat=V?V.mk(p.s,rep,t,b):p.s;
+  for(const x of pat){const r=b-t;if(r<1e-9)break;
+   if(x.d<=r+1e-9){o.push({n:[...x.n],d:x.d});t+=x.d}else{const d=FD.find(f=>f<=r+1e-9);o.push({n:[...x.n],d},...rest(r-d));t=b;break}}
+  rep++}
+ return o}
+/* ---------- variation engine ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const cl=r=>Math.max(0,Math.min(14,r)),dg=r=>(14-r)%7,ctn=(r,c)=>CH[c].includes(dg(r)),
+ snp=(r,c)=>{for(const d of[0,1,-1,2,-2]){const q=r+d;if(q>=0&&q<=14&&ctn(q,c))return q}return r},
+ starts=w=>{let t=0;return w.map(x=>{const s=t;t+=x.d;return s})},
+ noteIx=w=>w.map((x,i)=>x.n.length?i:-1).filter(i=>i>=0),
+ pick=(a,R)=>a[R()*a.length|0];
+/* pitched rows are scale steps (row-1 = one step up), so +-1 always stays in key. Added notes prefer tones of the chord playing under them. */
+const OPS={
+ step(w,R,C){const ix=noteIx(w);if(!ix.length)return;const i=pick(ix,R),s=starts(w)[i],dir=R()<.5?-1:1,m=R()<.2?2:1;
+  w[i].n=[...new Set(w[i].n.map(r=>{const q=cl(r+dir*m);return(s%2==0&&w[i].d>=1)?snp(q,C(s)):q}))]},
+ orn(w,R,C,j){const ix=noteIx(w).filter(i=>w[i].d>=.5);const i=j!=null?j:ix.length?pick(ix,R):-1;if(i<0||w[i].d<.5)return;
+  const x=w[i],h=x.d/2,top=Math.min(...x.n),nb=cl(top+(R()<.5?-1:1)*(R()<.7?1:2));
+  w.splice(i,1,{n:[...x.n],d:h},{n:R()<.25?[...x.n]:[nb],d:h})},
+ dyad(w,R,C){const ix=noteIx(w);if(!ix.length)return;const i=pick(ix,R),s=starts(w)[i],x=w[i],top=Math.min(...x.n);
+  const q=[top-2,top-4,top-3,top+2].find(r=>r>=0&&r<=14&&ctn(r,C(s)));if(q!=null&&!x.n.includes(q)&&x.n.length<3)x.n.push(q)},
+ split(w,R){const ix=noteIx(w).filter(i=>w[i].d>=.5);if(!ix.length)return;const i=pick(ix,R),x=w[i],h=x.d/2;w.splice(i,1,{n:[...x.n],d:h},{n:[...x.n],d:h})},
+ merge(w,R){const st=starts(w),c=[];for(let i=0;i<w.length-1;i++){const a=w[i],b=w[i+1],D=a.d*2;
+   if(a.d==b.d&&D<=4&&Math.abs(st[i]/D-Math.round(st[i]/D))<1e-9&&(a.n.length||b.n.length))c.push(i)}
+  if(!c.length)return;const i=pick(c,R);w.splice(i,2,{n:w[i].n.length?w[i].n:w[i+1].n,d:w[i].d*2})},
+ drop(w,R){const ix=noteIx(w).filter(i=>i>0);if(ix.length<2)return;w[pick(ix,R)].n=[]},
+ turn(w,R,C){const ix=noteIx(w);if(ix.length)OPS.orn(w,R,C,ix[ix.length-1])}};
+const DOPS={
+ hat(w,R){const c=w.map((x,i)=>i).filter(i=>!w[i].n.includes(3));if(c.length){const x=w[pick(c,R)];x.n=[...x.n,3]}},
+ kick(w,R){const c=w.map((x,i)=>i).filter(i=>!w[i].n.includes(0)&&!w[i].n.includes(1));if(c.length){const x=w[pick(c,R)];x.n=[...x.n,0]}},
+ ghost(w,R){const c=w.map((x,i)=>i).filter(i=>i>0&&!w[i].n.includes(1));if(c.length){const x=w[pick(c,R)];x.n=[...x.n,1]}},
+ split(w,R){const c=noteIx(w).filter(i=>w[i].d>=.5);if(!c.length)return;const i=pick(c,R),x=w[i],h=x.d/2,k=x.n.filter(r=>r!=1);
+  w.splice(i,1,{n:[...x.n],d:h},{n:R()<.5||!k.length?[3]:k,d:h})},
+ drop(w,R){const c=w.map((x,i)=>i).filter(i=>i>0&&w[i].n.includes(3));if(c.length){const x=w[pick(c,R)];x.n=x.n.filter(r=>r!=3)}},
+ tom(w,R){const ix=noteIx(w);if(!ix.length)return;const x=w[ix[ix.length-1]];if(!x.n.includes(1))x.n=[...x.n.filter(r=>r!=3&&r!=2),2]},
+ turn(){}};
+const PW={Intro:{step:2,merge:2,drop:1.5,orn:.5},Verse:{step:3,orn:2,merge:1,split:1,drop:1,dyad:.5},Pre:{split:3,orn:2,step:2,dyad:1},Chorus:{dyad:3,orn:2,step:2,split:1.5,merge:.3},Bridge:{step:3,orn:2,merge:2,drop:1,dyad:1,split:1},Outro:{step:2,merge:2,drop:1.5,orn:.5}},
+ DW={Intro:{drop:3,kick:.5},Verse:{hat:1,kick:1,ghost:1,split:1,drop:1},Pre:{split:3,hat:2,kick:1,ghost:1,tom:1},Chorus:{hat:3,kick:2,split:2,ghost:1,tom:1},Bridge:{drop:2,kick:1,ghost:1,tom:2,split:1},Outro:{drop:3,kick:.5}};
+/* Returns a function that makes a fresh variation of the loop each time it repeats. The first time through is always your original. */
+function mkV(X,role,k,si,bar0,last){
+ const lv=+M.p.vary||0;if(!lv)return null;
+ const base={Intro:.5,Verse:1,Pre:1.6,Chorus:1.6,Bridge:2.2,Outro:.6}[role]||1,
+  a=(base*(X=='harm'?.8:X=='beat'?.9:1)+(k>1?.35:0)+(last?.6:0))*lv/2,
+  R=mulberry32((M.seed>>>0)+si*7919+XS.indexOf(X)*104729),pr=PR[M.p.prog].split(' '),
+  OP=X=='beat'?DOPS:OPS,W=Object.entries((X=='beat'?DW:PW)[role]||{}).filter(e=>e[1]>0),tw=W.reduce((q,e)=>q+e[1],0);
+ R();R();
+ return{mk(pat,rep,t,b){
+  if(rep==0&&k<2)return pat;
+  const len=pat.reduce((q,x)=>q+x.d,0),reps=Math.max(1,Math.ceil(b/len-1e-9)),fin=b-t<=len+1e-9,
+   w=pat.map(x=>({n:[...x.n],d:x.d})),ar=a*(.7+.6*rep/Math.max(1,reps-1)),
+   C=lb=>pr[(bar0+Math.floor((t+lb)/4))%pr.length];
+  if(X!='beat'){const rows=w.flatMap(x=>x.n);if(rows.length){const mn=Math.min(...rows),mx=Math.max(...rows);
+   if((role=='Chorus'||role=='Bridge')&&mn>=7&&R()<.3*ar)w.forEach(x=>x.n=x.n.map(r=>r-7));
+   else if(role=='Bridge'&&mx<=7&&R()<.25*ar)w.forEach(x=>x.n=x.n.map(r=>r+7))}}
+  if(tw>0)for(let n=Math.min(4,Math.floor(ar+R()));n>0;n--){let r=R()*tw,nm=W[0][0];for(const e of W){if((r-=e[1])<0){nm=e[0];break}}OP[nm](w,R,C)}
+  if(fin&&R()<Math.min(.9,.35+ar*.3))OP.turn(w,R,C);
+  return w}}}
 const sub=(p,f)=>({s:p.s.map(x=>({n:x.n.filter(f),d:x.d}))}),FILL=[1,1,2,2].map(r=>({n:[r],d:.5})),ROLL=[1,1,1,1,1,1,2,2].map(r=>({n:[r],d:.5}));
-function part(X,role,b,k){const{A,B,C,D}=M.parts[X],g=(p,f)=>has(p)?p:f,E={s:[]};let p=A;
+function part(X,role,b,k,si,bar0,last){const V=mkV(X,role,k,si,bar0,last),{A,B,C,D}=M.parts[X],g=(p,f)=>has(p)?p:f,E={s:[]};let p=A;
  if(role=='Intro'){const l=sub(A,r=>r%3==0);p=X=='mel'?g(B,A):X=='beat'?g(B,has(l)?l:A):B}
  else if(role=='Pre')p=g(D,X=='harm'?E:A);
  else if(role=='Bridge')p=X=='mel'?{s:[...A.s].reverse()}:X=='beat'?sub(A,r=>r!=0):A;
  else if(role=='Outro')p=g(C,A);
  else if(role=='Verse'&&X=='harm'&&k<2)p=E;
  else if(role=='Chorus'&&X=='mel'&&k>1&&A.s.every(x=>x.n.every(r=>r>=7)))p={s:A.s.map(x=>({n:x.n.map(r=>r-7),d:x.d}))};
- if(role=='Outro'){const l=[...p.s].reverse().find(x=>x.n.length);return[...loop(p,b-4),{n:X=='beat'?[0]:l?l.n:[],d:4}]}
- if(X=='beat'){const r=role=='Pre'&&!has(D),f=r?ROLL:FILL;return[...loop(p,b-(r?4:2)),...f]}
- return loop(p,b)}
-function gen(){const P=M.p,bpm=FEEL[P.feel],U=Math.max(4,Math.round(P.min*bpm/16)),sc=SEC[P.min],sum=sc.reduce((a,x)=>a+x[1],0),c=sc.map(x=>Math.max(1,Math.round(U*x[1]/sum)));
+ if(role=='Outro'){const l=[...p.s].reverse().find(x=>x.n.length);return[...loop(p,b-4,V),{n:X=='beat'?[0]:l?l.n:[],d:4}]}
+ if(X=='beat'){const r=role=='Pre'&&!has(D),f=r?ROLL:FILL;return[...loop(p,b-(r?4:2),V),...f]}
+ return loop(p,b,V)}
+function gen(){M.seed=(Math.random()*4294967296)>>>0;const P=M.p,bpm=FEEL[P.feel],U=Math.max(4,Math.round(P.min*bpm/16)),sc=SEC[P.min],sum=sc.reduce((a,x)=>a+x[1],0),c=sc.map(x=>Math.max(1,Math.round(U*x[1]/sum)));
  for(let d=U-c.reduce((a,x)=>a+x);d;){const j=c.indexOf(Math.max(...c));if(d<0&&c[j]<2)break;c[j]+=d>0?1:-1;d+=d>0?-1:1}
- const T={mel:[],beat:[],harm:[],pad:[]},cnt={Verse:0,Chorus:0},pr=PR[P.prog].split(' ');let bars=0;
+ const T={mel:[],beat:[],harm:[],pad:[]},cnt={Verse:0,Chorus:0},pr=PR[P.prog].split(' ');let bars=0;const lc=sc.map(x=>x[0]).lastIndexOf('Chorus'),lv=+P.vary||0;
  sc.forEach((x,i)=>{const role=x[0],n=c[i]*4,b=n*4,k=role in cnt?++cnt[role]:0;
-  XS.forEach(X=>T[X].push(...part(X,role,b,k)));
-  T.pad.push(...(role=='Intro'?rest(b):Array.from({length:n},(_,j)=>({n:CH[pr[(bars+j)%pr.length]].map(d=>14-d),d:4}))));bars+=n});
+  XS.forEach(X=>T[X].push(...part(X,role,b,k,i,bars,i==lc)));
+  const pR=mulberry32((M.seed>>>0)+i*6151+17);
+  T.pad.push(...(role=='Intro'?rest(b):Array.from({length:n},(_,j)=>{const nt=CH[pr[(bars+j)%pr.length]].map(d=>14-d);
+   if(lv&&role=='Chorus'&&pR()<.3*lv/2+(k>1?.2:0)+(i==lc?.2:0))return[{n:nt,d:2},{n:nt.slice(1),d:2}];
+   if(lv&&role=='Pre'&&j==n-1)return[1,1,1,1].map(d=>({n:nt,d}));
+   return[{n:nt,d:4}]}).flat()));bars+=n});
  const tr=[{k:P.inst,o:0,v:.8,s:T.mel}];
  if(has(M.parts.beat.A))tr.push({k:'drums',o:0,v:.9,s:T.beat});
  if(has(M.parts.harm.A))tr.push({k:ik('harm'),o:0,v:.6,s:T.harm});
  tr.push({k:P.inst=='piano'?'violin':'piano',o:-1,v:.35,s:T.pad});
  stop();S.tracks=tr;S.bpm=bpm;$('bpm').value=bpm;S.sync=true;$('sync').checked=true;S.cur=0;render();$('sc').scrollTo({left:0});
- $('msg').textContent=`Song ready: ${bars} bars, about ${fmt(bars*240/bpm)} at ${bpm} BPM. Press Play, or tweak any tile.`}
+ $('msg').textContent=`Song ready: ${bars} bars, about ${fmt(bars*240/bpm)} at ${bpm} BPM. ${lv?'Variety: '+['','a little','some','lots'][lv]+'. Tap Remix for a new take. ':''}Press Play, or tweak any tile.`;$('rmx').hidden=false}
+$('rmx').onclick=()=>{if(!confirm('Remix rebuilds the song from your melodies with new variations and replaces the current tracks (including any tile edits). Continue?'))return;gen()};
 $('mk').onclick=()=>{M.step=1;M.part='A';S.bpm=FEEL[M.p.feel];md();$('md').hidden=false};
 $('mp').addEventListener('click',e=>{const b=e.target.closest('[data-m]');if(!b)return;const a=b.dataset.m,X=XS[M.step-2],p=X&&M.parts[X][M.part];
  if(a=='back'){if(M.step==1)$('md').hidden=true;else{M.step--;M.part='A'}}
@@ -304,6 +366,12 @@ async function mp3Blob(b){const enc=new lamejs.Mp3Encoder(2,b.sampleRate,128),L=
  for(let i=0,n=0;i<L.length;i+=1152,n++){const x=enc.encodeBuffer(L.subarray(i,i+1152),R.subarray(i,i+1152));if(x.length)out.push(x);
   if(n%150==0){const f=i/L.length;sv('Encoding MP3… '+Math.round(f*100)+'%',null,90+f*10);await nxt()}}
  out.push(enc.flush());return new Blob(out,{type:'audio/mpeg'})}
+async function renderP(oc,dur,label,p0,p1){
+ const t0=Date.now(),N=24;
+ for(let k=1;k<N;k++){const at=dur*k/N;oc.suspend(at).then(()=>{const f=at/dur,el=(Date.now()-t0)/1000;
+  sv(label+' '+Math.round(f*100)+'%',f>.1?'About '+fmtT(el/f*(1-f))+' left. Keep this tab open.':'Estimating time left…',p0+f*(p1-p0));oc.resume()}).catch(()=>{})}
+ sv(label+' 0%','Estimating time left…',p0);await nxt();
+ return oc.startRendering()}
 let busy=false;
 async function exp(fmt){
  if(busy)return;
@@ -316,15 +384,20 @@ async function exp(fmt){
  $('msg').textContent='Saving…';
  try{
   await nxt();
-  const dur=tot+2,oc=new OfflineAudioContext(2,Math.ceil(44100*dur),44100),m=mast(oc),n=S.tracks.length;
-  for(let ti=0;ti<n;ti++){
-   sv('Building your song… '+(ti+1)+'/'+n,'Keep this tab open.',ti/n*10);await nxt();
-   const tr=S.tracks[ti],g=oc.createGain();g.gain.value=tr.v;g.connect(m);schedTrack(oc,g,tr,tr.s,.05,0,Infinity,S.bpm)}
-  const t0=Date.now(),N=30;
-  for(let k=1;k<N;k++){const at=dur*k/N;oc.suspend(at).then(()=>{const f=at/dur,el=(Date.now()-t0)/1000;
-   sv('Rendering audio… '+Math.round(f*100)+'%',f>.08?'About '+fmtT(el/f*(1-f))+' left. Keep this tab open.':'Estimating time left…',10+f*80);oc.resume()}).catch(()=>{})}
-  sv('Rendering audio… 0%','Estimating time left…',10);await nxt();
-  const buf=await oc.startRendering();
+  /* Fast export: render each distinct note once, then just mix copies of those clips. Songs repeat a lot, so this is far less work. */
+  const SR=44100,bpm=S.bpm,TL=tr=>tr.k=='cymbals'?1.8:INST[tr.k].r?.7:.4,ev=[],uq=new Map();
+  S.tracks.forEach((tr,ti)=>{let t=.05;tr.s.forEach(s=>{const u=s.d*60/bpm;s.n.forEach(r=>{const key=tr.k+'|'+tr.o+'|'+r+'|'+u.toFixed(4);if(!uq.has(key))uq.set(key,{tr,r,u,off:0,len:0,buf:null});ev.push({key,ti,t})});t+=u})});
+  let off=0;uq.forEach(q=>{q.off=off;q.len=q.u+TL(q.tr);off+=q.len+.05});
+  sv('Building sounds…','Keep this tab open.',2);await nxt();
+  const oc1=new OfflineAudioContext(1,Math.ceil(SR*off)+SR,SR);
+  uq.forEach(q=>note(oc1,oc1.destination,q.tr,q.r,q.off,q.u));
+  const raw=(await renderP(oc1,off+1,'Building sounds…',3,50)).getChannelData(0);
+  uq.forEach(q=>{const a=Math.floor(q.off*SR),n=Math.ceil(q.len*SR),b=oc1.createBuffer(1,n,SR);b.copyToChannel(raw.subarray(a,a+n),0);q.buf=b});
+  sv('Mixing song…','Keep this tab open.',50);await nxt();
+  const dur=tot+2,oc=new OfflineAudioContext(2,Math.ceil(SR*dur),SR),m=mast(oc);
+  const gs=S.tracks.map(tr=>{const g=oc.createGain();g.gain.value=tr.v;g.connect(m);return g});
+  ev.forEach(e=>{const x=oc.createBufferSource();x.buffer=uq.get(e.key).buf;x.connect(gs[e.ti]);x.start(e.t)});
+  const buf=await renderP(oc,dur,'Mixing song…',50,90);
   let blob,ext=fmt;
   if(fmt=='mp3'){
    if(window.lamejs){sv('Encoding MP3… 0%','Almost done.',90);await nxt();blob=await mp3Blob(buf)}
