@@ -2,20 +2,27 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Tile Tones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jura:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#17151c;--p:#211e29;--l:#312d3d;--tx:#efeaf7;--mu:#968fa8}
+:root{--tx:#b5dcff;--mu:#d2b8f2;--pk:#ff9bd2;--ln:#ffffff40}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 Georgia,'Times New Roman',serif}
-h1{font-size:20px;margin:0;font-style:italic;letter-spacing:.5px}
+body{margin:0;min-height:100vh;color:var(--tx);font:12px/1.4 'Jura','Trebuchet MS',sans-serif;background:linear-gradient(165deg,#4a2a8a 0%,#8b3f9f 50%,#d070b0 100%) fixed}
+h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.5px;color:#ffd6ee;text-shadow:0 0 14px #ff9bd2,2px 2px 0 #5a2a86}
 button,select,input{font:inherit;color:inherit}
-button,select{background:var(--l);border:1px solid #4a4459;border-radius:6px;padding:6px 10px;cursor:pointer}
-button:hover{border-color:#fff8}
-button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #ffb454;outline-offset:1px}
-header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;background:var(--p);position:sticky;top:0;z-index:5;border-bottom:1px solid #0006}
+button,select{background:#ffffff1f;border:2px solid var(--ln);border-radius:3px;padding:3px 7px;font-size:11px;cursor:pointer}
+select option{background:#4a2a8a}
+button:hover{border-color:#ffd6ee;background:#ffffff33}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #ffd6ee;outline-offset:2px}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;background:#2b164699;backdrop-filter:blur(8px);position:sticky;top:0;z-index:5;border-bottom:2px solid var(--ln)}
 .g{display:flex;gap:4px;align-items:center}
-#name{background:var(--bg);border:1px solid #4a4459;border-radius:6px;padding:6px 10px;width:150px}
-#bpm{width:64px;background:var(--bg);border:1px solid #4a4459;border-radius:6px;padding:6px}
-#play{background:#ffb454;color:#1a1200;border-color:#ffb454;font-weight:bold}
+#name,#bpm{background:#2b164688;border:2px solid var(--ln);border-radius:3px;padding:4px 8px;color:var(--tx)}
+#name{width:120px;font-size:11px}#bpm{width:62px}
+.ib{width:30px;height:30px;padding:0;display:grid;place-items:center}
+.ib svg{width:14px;height:14px;fill:currentColor;shape-rendering:crispEdges}
+.ib.act{background:var(--pk);border-color:var(--pk);color:#3a1660}
+#play{background:var(--pk);border-color:var(--pk);color:#3a1660}
+.hd .ib{width:26px;height:26px}
 #sc{overflow-x:auto;padding:12px 0 40px}
 #in{position:relative;display:inline-block;min-width:100%}
 .trk{margin:0 0 18px}
@@ -23,48 +30,51 @@ header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;backg
 .hd select{border-color:var(--c)}
 .hd input{width:70px;accent-color:var(--c)}
 .bd{display:flex;padding:4px 12px 0 0}
-.lb{position:sticky;left:0;z-index:2;background:var(--bg);width:48px;flex:none;padding-left:12px;color:var(--mu);font-size:11px}
-.lb div,.sp{height:22px;line-height:22px}
-.col{flex:none;padding:0 1px;border-radius:4px}
-.col.cur{outline:1px dashed #fffa;outline-offset:-1px}
-.col.ply{background:#ffffff1c}
-.du{display:block;width:100%;height:20px;margin:1px 0;padding:0;font-size:11px;overflow:hidden;background:transparent;border:1px solid var(--c);color:var(--c)}
-.cell{display:block;height:20px;margin:1px 0;background:var(--l);border-radius:3px;cursor:pointer}
-.cell:hover{background:#4a4459}
-.cell.on{background:var(--c)}
+.lb{position:sticky;left:0;z-index:2;background:#4a2a8ae6;width:48px;flex:none;padding-left:12px;color:var(--mu);font-size:10px}
+.lb div,.sp{height:28px;line-height:28px}
+.col{flex:none;padding:0 1px;display:flex;flex-direction:column}
+.col.cur{outline:2px dashed #ffd6ee;outline-offset:-2px}
+.col.ply{background:#ffffff2e}
+.du{display:block;width:100%;height:26px;margin:1px 0;padding:0;font-size:10px;overflow:hidden;background:transparent;border:2px solid var(--c);color:var(--c);border-radius:2px}
+.cell{display:block;height:26px;margin:1px 0;background:#ffffff1f;border-radius:2px;cursor:pointer}
+.cell:hover{background:#ffffff4d}
+.cell.on{background:var(--c);box-shadow:0 0 8px var(--c)}
 #ph{position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.8;display:none;z-index:3;pointer-events:none}
-#msg{color:var(--mu);font-size:12px;padding:0 12px}
+#msg{color:var(--mu);font-size:11px;padding:0 12px}
+body{text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+button,select,input{text-transform:inherit;letter-spacing:inherit}
+h1{letter-spacing:.1em}
+.du,.lb,#msg{letter-spacing:.04em}
+@media(max-width:600px){header{gap:6px;padding:8px}#bpm{width:52px}#name{width:100px}}
 </style></head><body>
 <header>
- <h1>Tile Tones</h1>
+ <h1>Tile Tones ✦</h1>
  <input id="name" placeholder="Track name" value="My Track" aria-label="Track name">
- <div class="g">
-  <button id="prev" title="Previous tile" aria-label="Previous tile">◀</button>
-  <button id="play" title="Play">▶ Play</button>
-  <button id="pause">❚❚ Pause</button>
-  <button id="stop">■ Stop</button>
-  <button id="next" title="Next tile" aria-label="Next tile">▶|</button>
+ <div class="g"><button class="ib" id="first" title="Go to start" aria-label="Go to start"><svg viewBox="0 0 14 14"><rect x="1" y="2" width="2" height="10"/><polygon points="8,2 4,7 8,12"/><polygon points="13,2 9,7 13,12"/></svg></button><button class="ib" id="prev" title="Previous tile" aria-label="Previous tile"><svg viewBox="0 0 14 14"><rect x="2" y="2" width="2" height="10"/><polygon points="12,2 5,7 12,12"/></svg></button><button class="ib" id="play" title="Play" aria-label="Play"><svg viewBox="0 0 14 14"><polygon points="3,1 12,7 3,13"/></svg></button><button class="ib" id="pause" title="Pause" aria-label="Pause"><svg viewBox="0 0 14 14"><rect x="3" y="2" width="3" height="10"/><rect x="8" y="2" width="3" height="10"/></svg></button><button class="ib" id="stop" title="Stop" aria-label="Stop"><svg viewBox="0 0 14 14"><rect x="3" y="3" width="8" height="8"/></svg></button><button class="ib" id="next" title="Next tile" aria-label="Next tile"><svg viewBox="0 0 14 14"><polygon points="2,2 9,7 2,12"/><rect x="10" y="2" width="2" height="10"/></svg></button><button class="ib" id="last" title="Go to end" aria-label="Go to end"><svg viewBox="0 0 14 14"><polygon points="1,2 5,7 1,12"/><polygon points="6,2 10,7 6,12"/><rect x="11" y="2" width="2" height="10"/></svg></button><button class="ib" id="loop" title="Loop" aria-label="Loop"><svg viewBox="0 0 14 14"><path d="M2 7V3h8M12 7v4H4" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="9,0 14,3 9,6"/><polygon points="5,8 0,11 5,14"/></svg></button>
  </div>
  <label class="g">BPM <input id="bpm" type="number" min="40" max="240" value="100"></label>
  <label class="g"><input id="sync" type="checkbox"> Sync mode</label>
+ <select id="ft" aria-label="Load a full track"></select>
  <div class="g"><select id="ni"></select><button id="addt">Add instrument</button></div>
  <div class="g"><button id="wav">Save WAV</button><button id="mp3">Save MP3</button></div>
 </header>
-<p id="msg">Click a cell to place a note. Click a tile's top number to change its length (in beats). Sync mode stretches tiles to real time so every instrument lines up.</p>
+<p id="msg">Pick a full track to start, or use + Sample on a track to drop a clip in at the cursor. Click a cell to place a note. Click a tile's top number to change its length (in beats). Sync mode stretches tiles to real time so every instrument lines up.</p>
 <div id="sc"><div id="in"></div></div>
+<script src="full-track-samples.js"></script>
+<script src="single-samples.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const NM=['C','D','E','F','G','A','B'];
 const INST={
- piano:{n:'Piano',c:'#ffb454'},guitar:{n:'Guitar',c:'#ff7a6b'},violin:{n:'Violin',c:'#c58bff'},
- digital:{n:'Digital',c:'#5ce1e6'},
- drums:{n:'Drums',c:'#8ee26b',r:['Kick','Snare','Tom','Hi-hat']},
- cymbals:{n:'Cymbals',c:'#f5e663',r:['Crash','Ride','Splash','China']}};
-const DUR=[.25,.5,1,2,4],DL={.25:'¼',.5:'½',1:'1',2:'2',4:'4'},PPB=72,TW=46;
+ piano:{n:'Piano',c:'#ffc2e2'},guitar:{n:'Guitar',c:'#ffb8a8'},violin:{n:'Violin',c:'#d6b8ff'},
+ digital:{n:'Digital',c:'#9fe8ff'},
+ drums:{n:'Drums',c:'#b8ffd9',r:['Kick','Snare','Tom','Hi-hat']},
+ cymbals:{n:'Cymbals',c:'#fff0a8',r:['Crash','Ride','Splash','China']}};
+const DUR=[.25,.5,1,2,4],DL={.25:'¼',.5:'½',1:'1',2:'2',4:'4'},PPB=72,TW=28;
 const mid=(r,o)=>{const i=14-r;return 60+12*(Math.floor(i/7)+o)+[0,2,4,5,7,9,11][i%7]};
 const lab=(r,o)=>{const i=14-r;return NM[i%7]+(4+Math.floor(i/7)+o)};
 const mk=k=>({k,o:0,v:.8,s:Array.from({length:8},()=>({n:[],d:1}))});
-const S={bpm:100,sync:false,cur:0,tracks:[mk('piano')]};
+const S={loop:false,bpm:100,sync:false,cur:0,tracks:[mk('piano')]};
 
 /* ---------- synthesis (all generated, no samples) ---------- */
 function nb(c){if(!c._n){const b=c.createBuffer(1,c.sampleRate*2,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;c._n=b}return c._n}
@@ -112,7 +122,7 @@ function stop(){if(AC){AC.close();AC=null}clearPly()}
 function clearPly(){document.querySelectorAll('.col.ply').forEach(e=>e.classList.remove('ply'));$('ph')&&($('ph').style.display='none')}
 function tick(){
  if(!AC)return;const e=AC.currentTime-st.t0;
- if(e>st.tot+.3){stop();return}
+ if(e>st.tot+(S.loop?0:.3)){if(S.loop){stop();play()}else stop();return}
  const idx=S.tracks.map(tr=>{let t=0;for(let i=st.from;i<tr.s.length;i++){t+=secs(tr.s[i]);if(e<t)return i}return -1});
  document.querySelectorAll('.col').forEach(el=>el.classList.toggle('ply',e>=0&&idx[+el.closest('.trk').dataset.t]==+el.dataset.i));
  const ph=$('ph');
@@ -124,12 +134,12 @@ function go(n){const m=maxLen()-1;S.cur=Math.max(0,Math.min(m,S.cur+n));render()
 /* ---------- UI ---------- */
 function render(){
  $('in').innerHTML=S.tracks.map((tr,ti)=>{
-  const I=INST[tr.k],R=I.r?I.r.length:15;
+  const I=INST[tr.k],R=I.r?I.r.length:15,sl=(SINGLE[tr.k]||[]).map((x,i)=>`<option value="${i}">${x.n}</option>`).join('');
   const opts=Object.keys(INST).map(k=>`<option value="${k}"${k==tr.k?' selected':''}>${INST[k].n}</option>`).join('');
   const oct=I.r?'':`<select data-a="oct" aria-label="Octave">${[-1,0,1].map(o=>`<option value="${o}"${o==tr.o?' selected':''}>Oct ${o>0?'+':''}${o}</option>`).join('')}</select>`;
   const lbs=Array.from({length:R},(_,r)=>`<div>${I.r?I.r[r]:lab(r,tr.o)}</div>`).join('');
   const cols=tr.s.map((s,i)=>`<div class="col${i==S.cur?' cur':''}" data-i="${i}" style="width:${S.sync?s.d*PPB:TW}px"><button class="du" data-a="dur" title="Tile length in beats">${DL[s.d]}</button>${Array.from({length:R},(_,r)=>`<i class="cell${s.n.includes(r)?' on':''}" data-a="cell" data-r="${r}"></i>`).join('')}</div>`).join('');
-  return `<section class="trk" data-t="${ti}" style="--c:${I.c}"><div class="hd"><select data-a="inst" aria-label="Instrument">${opts}</select>${oct}<input type="range" data-a="vol" min="0" max="1" step=".05" value="${tr.v}" aria-label="Volume"><button data-a="add">+ tile</button><button data-a="del">− tile</button><button data-a="rm" aria-label="Remove instrument">✕</button></div><div class="bd"><div class="lb"><div class="sp"></div>${lbs}</div>${cols}</div></section>`}).join('')+'<div id="ph"></div>'}
+  return `<section class="trk" data-t="${ti}" style="--c:${I.c}"><div class="hd"><select data-a="inst" aria-label="Instrument">${opts}</select><select data-a="smp" aria-label="Insert sample at cursor"><option value="">+ Sample</option>${sl}</select>${oct}<input type="range" data-a="vol" min="0" max="1" step=".05" value="${tr.v}" aria-label="Volume"><button class="ib" data-a="add" title="Add tile" aria-label="Add tile">+</button><button class="ib" data-a="del" title="Remove last tile" aria-label="Remove last tile">−</button><button class="ib" data-a="rm" title="Remove instrument" aria-label="Remove instrument">×</button></div><div class="bd"><div class="lb"><div class="sp"></div>${lbs}</div>${cols}</div></section>`}).join('')+'<div id="ph"></div>'}
 $('in').addEventListener('click',e=>{
  const el=e.target.closest('[data-a]');if(!el)return;
  const a=el.dataset.a,tr=S.tracks[+el.closest('.trk').dataset.t],col=el.closest('.col'),ci=col?+col.dataset.i:0;
@@ -142,12 +152,31 @@ $('in').addEventListener('click',e=>{
  else if(a=='rm'){S.tracks.splice(S.tracks.indexOf(tr),1);S.cur=Math.min(S.cur,Math.max(0,maxLen()-1));render()}});
 $('in').addEventListener('input',e=>{
  const el=e.target,a=el.dataset.a,tr=S.tracks[+el.closest('.trk').dataset.t];
+ if(a=='smp'){if(el.value!=='')ins(tr,+el.value);else render();return}
  if(a=='inst'){tr.k=el.value;const R=INST[tr.k].r?4:15;tr.s.forEach(s=>s.n=s.n.filter(r=>r<R));render()}
  else if(a=='oct'){tr.o=+el.value;render()}
  else if(a=='vol')tr.v=+el.value});
+const FULL=window.FULL_TRACKS||[],SINGLE=window.SINGLE_SAMPLES||{};
+const DM={drums:{k:0,s:1,t:2,h:3},cymbals:{c:0,r:1,p:2,x:3}},DG={C:0,D:1,E:2,F:3,G:4,A:5,B:6};
+function parse(p,k,o){return p.split(' ').filter(Boolean).map(t=>{const[a,d]=t.split(':'),n=[];
+ if(a!='-')a.split('+').forEach(x=>{let r;if(INST[k].r)r=DM[k][x];else{const m=x.match(/^([A-G])(\d)$/);if(!m)return;let i=(+m[2]-4-o)*7+DG[m[1]];while(i<0)i+=7;while(i>14)i-=7;r=14-i}if(r!=null&&!n.includes(r))n.push(r)});
+ return{n,d:+d||1}})}
+function ins(tr,i){const sp=parse(SINGLE[tr.k][i].p,tr.k,tr.o);
+ while(tr.s.length<S.cur)tr.s.push({n:[],d:1});
+ sp.forEach((s,j)=>{const x=S.cur+j;x<tr.s.length?tr.s[x]=s:tr.s.push(s)});
+ pv((c,m,t)=>sp.forEach(s=>{const u=secs(s);s.n.forEach(r=>note(c,m,tr,r,t,u));t+=u}));
+ S.cur=Math.min(S.cur+sp.length,maxLen()-1);render()}
+$('ft').innerHTML='<option value="">Full tracks…</option>'+FULL.map((f,i)=>`<option value="${i}">${f.name}</option>`).join('');
+$('ft').onchange=e=>{const f=FULL[e.target.value];e.target.value='';if(!f)return;
+ if(S.tracks.some(t=>t.s.some(s=>s.n.length))&&!confirm('Replace your current tracks with "'+f.name+'"?'))return;
+ stop();S.bpm=f.bpm;$('bpm').value=f.bpm;S.cur=0;
+ S.tracks=f.tracks.map(t=>({k:t.k,o:t.o||0,v:t.v??.8,s:parse(t.p,t.k,t.o||0)}));render()};
 $('ni').innerHTML=Object.keys(INST).map(k=>`<option value="${k}">${INST[k].n}</option>`).join('');
 $('addt').onclick=()=>{S.tracks.push(mk($('ni').value));render()};
 $('play').onclick=play;$('pause').onclick=pause;$('stop').onclick=stop;
+$('loop').onclick=e=>{S.loop=!S.loop;e.currentTarget.classList.toggle('act',S.loop);e.currentTarget.setAttribute('aria-pressed',S.loop)};
+$('first').onclick=()=>{const live=AC&&!st.paused;stop();S.cur=0;render();$('sc').scrollTo({left:0,behavior:'smooth'});live?play():preview(0)};
+$('last').onclick=()=>{stop();S.cur=maxLen()-1;render();preview(S.cur);$('sc').scrollTo({left:$('sc').scrollWidth,behavior:'smooth'})};
 $('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);
 $('bpm').oninput=e=>{S.bpm=Math.max(40,Math.min(240,+e.target.value||100))};
 $('sync').onchange=e=>{S.sync=e.target.checked;render()};
