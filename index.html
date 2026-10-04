@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tile Tones</title>
+<style>
+:root{--bg:#17151c;--p:#211e29;--l:#312d3d;--tx:#efeaf7;--mu:#968fa8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 Georgia,'Times New Roman',serif}
+h1{font-size:20px;margin:0;font-style:italic;letter-spacing:.5px}
+button,select,input{font:inherit;color:inherit}
+button,select{background:var(--l);border:1px solid #4a4459;border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:#fff8}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #ffb454;outline-offset:1px}
+header{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px;background:var(--p);position:sticky;top:0;z-index:5;border-bottom:1px solid #0006}
+.g{display:flex;gap:4px;align-items:center}
+#name{background:var(--bg);border:1px solid #4a4459;border-radius:6px;padding:6px 10px;width:150px}
+#bpm{width:64px;background:var(--bg);border:1px solid #4a4459;border-radius:6px;padding:6px}
+#play{background:#ffb454;color:#1a1200;border-color:#ffb454;font-weight:bold}
+#sc{overflow-x:auto;padding:12px 0 40px}
+#in{position:relative;display:inline-block;min-width:100%}
+.trk{margin:0 0 18px}
+.hd{position:sticky;left:0;display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:min(100vw,640px);padding:4px 12px;border-left:4px solid var(--c)}
+.hd select{border-color:var(--c)}
+.hd input{width:70px;accent-color:var(--c)}
+.bd{display:flex;padding:4px 12px 0 0}
+.lb{position:sticky;left:0;z-index:2;background:var(--bg);width:48px;flex:none;padding-left:12px;color:var(--mu);font-size:11px}
+.lb div,.sp{height:22px;line-height:22px}
+.col{flex:none;padding:0 1px;border-radius:4px}
+.col.cur{outline:1px dashed #fffa;outline-offset:-1px}
+.col.ply{background:#ffffff1c}
+.du{display:block;width:100%;height:20px;margin:1px 0;padding:0;font-size:11px;overflow:hidden;background:transparent;border:1px solid var(--c);color:var(--c)}
+.cell{display:block;height:20px;margin:1px 0;background:var(--l);border-radius:3px;cursor:pointer}
+.cell:hover{background:#4a4459}
+.cell.on{background:var(--c)}
+#ph{position:absolute;top:0;bottom:0;width:2px;background:#fff;opacity:.8;display:none;z-index:3;pointer-events:none}
+#msg{color:var(--mu);font-size:12px;padding:0 12px}
+</style></head><body>
+<header>
+ <h1>Tile Tones</h1>
+ <input id="name" placeholder="Track name" value="My Track" aria-label="Track name">
+ <div class="g">
+  <button id="prev" title="Previous tile" aria-label="Previous tile">◀</button>
+  <button id="play" title="Play">▶ Play</button>
+  <button id="pause">❚❚ Pause</button>
+  <button id="stop">■ Stop</button>
+  <button id="next" title="Next tile" aria-label="Next tile">▶|</button>
+ </div>
+ <label class="g">BPM <input id="bpm" type="number" min="40" max="240" value="100"></label>
+ <label class="g"><input id="sync" type="checkbox"> Sync mode</label>
+ <div class="g"><select id="ni"></select><button id="addt">Add instrument</button></div>
+ <div class="g"><button id="wav">Save WAV</button><button id="mp3">Save MP3</button></div>
+</header>
+<p id="msg">Click a cell to place a note. Click a tile's top number to change its length (in beats). Sync mode stretches tiles to real time so every instrument lines up.</p>
+<div id="sc"><div id="in"></div></div>
+<script>
+const $=id=>document.getElementById(id);
+const NM=['C','D','E','F','G','A','B'];
+const INST={
+ piano:{n:'Piano',c:'#ffb454'},guitar:{n:'Guitar',c:'#ff7a6b'},violin:{n:'Violin',c:'#c58bff'},
+ digital:{n:'Digital',c:'#5ce1e6'},
+ drums:{n:'Drums',c:'#8ee26b',r:['Kick','Snare','Tom','Hi-hat']},
+ cymbals:{n:'Cymbals',c:'#f5e663',r:['Crash','Ride','Splash','China']}};
+const DUR=[.25,.5,1,2,4],DL={.25:'¼',.5:'½',1:'1',2:'2',4:'4'},PPB=72,TW=46;
+const mid=(r,o)=>{const i=14-r;return 60+12*(Math.floor(i/7)+o)+[0,2,4,5,7,9,11][i%7]};
+const lab=(r,o)=>{const i=14-r;return NM[i%7]+(4+Math.floor(i/7)+o)};
+const mk=k=>({k,o:0,v:.8,s:Array.from({length:8},()=>({n:[],d:1}))});
+const S={bpm:100,sync:false,cur:0,tracks:[mk('piano')]};
+
+/* ---------- synthesis (all generated, no samples) ---------- */
+function nb(c){if(!c._n){const b=c.createBuffer(1,c.sampleRate*2,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;c._n=b}return c._n}
+function nz(c,d,t,len,type,f,q,g){const s=c.createBufferSource();s.buffer=nb(c);const fl=c.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=q;const e=c.createGain();e.gain.setValueAtTime(g,t);e.gain.exponentialRampToValueAtTime(.001,t+len);s.connect(fl);fl.connect(e);e.connect(d);s.start(t);s.stop(t+len+.05)}
+function sw(c,d,t,f1,f2,tf,len,g){const o=c.createOscillator(),e=c.createGain();o.frequency.setValueAtTime(f1,t);o.frequency.exponentialRampToValueAtTime(f2,t+tf);e.gain.setValueAtTime(g,t);e.gain.exponentialRampToValueAtTime(.001,t+len);o.connect(e);e.connect(d);o.start(t);o.stop(t+len+.05)}
+function env(c,d,t,u,pk,at,rel,dec){const g=c.createGain(),a=g.gain;a.setValueAtTime(.0001,t);a.linearRampToValueAtTime(pk,t+at);const e=t+Math.max(u,at+.02);dec?a.exponentialRampToValueAtTime(pk*dec,e):a.setValueAtTime(pk,e);a.exponentialRampToValueAtTime(.0001,e+rel);g.connect(d);return[g,e+rel]}
+function osc(c,type,f,t,end,out,det){const o=c.createOscillator();o.type=type;o.frequency.value=f;if(det)o.detune.value=det;o.connect(out);o.start(t);o.stop(end+.05);return o}
+function lp(c,out,f){const l=c.createBiquadFilter();l.type='lowpass';l.frequency.value=f;l.connect(out);return l}
+const SY={
+ piano(c,d,f,t,u){const[g,e]=env(c,d,t,u,.35,.004,.1,.08);osc(c,'triangle',f,t,e,g);const h=c.createGain();h.gain.value=.3;h.connect(g);osc(c,'sine',f*2,t,e,h);osc(c,'sine',f*3,t,e,h)},
+ guitar(c,d,f,t,u){const sr=c.sampleRate,L=Math.ceil(sr*(u+.3)),N=Math.max(2,Math.round(sr/f)),b=c.createBuffer(1,L,sr),x=b.getChannelData(0);let p=0;
+  for(let i=0;i<L;i++){if(i<N){p=p*.5+(Math.random()*2-1)*.5;x[i]=p}else x[i]=.5*(x[i-N]+x[i-N+1])*.997}
+  const s=c.createBufferSource(),g=c.createGain();s.buffer=b;g.gain.setValueAtTime(1,t);g.gain.setValueAtTime(1,t+u);g.gain.linearRampToValueAtTime(0,t+u+.12);s.connect(g);g.connect(d);s.start(t);s.stop(t+u+.15)},
+ violin(c,d,f,t,u){const[g,e]=env(c,d,t,u,.2,.14,.15),l=lp(c,g,Math.min(f*5,4000)),a=osc(c,'sawtooth',f,t,e,l,-6),b=osc(c,'sawtooth',f,t,e,l,6);
+  const o=c.createOscillator(),lg=c.createGain();o.frequency.value=5.5;lg.gain.value=9;o.connect(lg);lg.connect(a.detune);lg.connect(b.detune);o.start(t);o.stop(e+.05)},
+ digital(c,d,f,t,u){const[g,e]=env(c,d,t,u,.16,.005,.04,.3);osc(c,'square',f,t,e,lp(c,g,3500))}};
+const CY=[[1.6,5000,9500,.5],[1.1,6500,4500,.3],[.5,7000,10000,.4],[1,3500,6000,.45]];
+function perc(c,d,k,r,t,u){
+ if(k=='drums'){
+  if(r==0)sw(c,d,t,160,42,.15,.4,1);
+  else if(r==1){nz(c,d,t,.2,'highpass',1800,.7,.7);sw(c,d,t,200,150,.08,.12,.4)}
+  else if(r==2)sw(c,d,t,220,100,.18,.35,.8);
+  else nz(c,d,t,.06,'highpass',7000,.7,.5);
+ }else{const[l,h,b,g]=CY[r],n=Math.max(.15,Math.min(l,u+.1));nz(c,d,t,n,'highpass',h,.5,g);nz(c,d,t,n,'bandpass',b,.6,g*.7)}}
+function note(c,d,tr,r,t,u){
+ if(INST[tr.k].r)return perc(c,d,tr.k,r,t,u);
+ SY[tr.k](c,d,440*2**((mid(r,tr.o)-69)/12),t,u)}
+
+/* ---------- scheduling ---------- */
+const secs=s=>s.d*60/S.bpm;
+function sched(c,d,t0,from){let mx=0;
+ S.tracks.forEach(tr=>{const g=c.createGain();g.gain.value=tr.v;g.connect(d);let t=t0;
+  for(let i=from;i<tr.s.length;i++){const s=tr.s[i],u=secs(s);s.n.forEach(r=>note(c,g,tr,r,t,u));t+=u}
+  mx=Math.max(mx,t-t0)});return mx}
+const maxLen=()=>Math.max(...S.tracks.map(t=>t.s.length));
+let AC=null,st=null,PV=null;
+function pv(fn){if(!PV)PV=new AudioContext();if(PV.state=='suspended')PV.resume();const m=PV.createGain();m.gain.value=.8;m.connect(PV.destination);fn(PV,m,PV.currentTime+.02)}
+function preview(i){pv((c,m,t)=>S.tracks.forEach(tr=>{const s=tr.s[i];if(s)s.n.forEach(r=>note(c,m,tr,r,t,Math.min(secs(s),1.5)))}))}
+function play(){
+ if(AC&&st.paused){AC.resume();st.paused=0;return}
+ stop();AC=new AudioContext();const m=AC.createGain();m.gain.value=.8;m.connect(AC.destination);
+ const t0=AC.currentTime+.08,tot=sched(AC,m,t0,S.cur);st={t0,tot,paused:0,from:S.cur};tick()}
+function pause(){if(AC&&!st.paused){AC.suspend();st.paused=1}}
+function stop(){if(AC){AC.close();AC=null}clearPly()}
+function clearPly(){document.querySelectorAll('.col.ply').forEach(e=>e.classList.remove('ply'));$('ph')&&($('ph').style.display='none')}
+function tick(){
+ if(!AC)return;const e=AC.currentTime-st.t0;
+ if(e>st.tot+.3){stop();return}
+ const idx=S.tracks.map(tr=>{let t=0;for(let i=st.from;i<tr.s.length;i++){t+=secs(tr.s[i]);if(e<t)return i}return -1});
+ document.querySelectorAll('.col').forEach(el=>el.classList.toggle('ply',e>=0&&idx[+el.closest('.trk').dataset.t]==+el.dataset.i));
+ const ph=$('ph');
+ if(S.sync&&st.from==0&&e>=0){ph.style.display='block';ph.style.left=(60+e*S.bpm/60*PPB)+'px'}else ph.style.display='none';
+ requestAnimationFrame(tick)}
+function go(n){const m=maxLen()-1;S.cur=Math.max(0,Math.min(m,S.cur+n));render();preview(S.cur);
+ const c=document.querySelector('.col.cur');c&&c.scrollIntoView({inline:'center',block:'nearest'})}
+
+/* ---------- UI ---------- */
+function render(){
+ $('in').innerHTML=S.tracks.map((tr,ti)=>{
+  const I=INST[tr.k],R=I.r?I.r.length:15;
+  const opts=Object.keys(INST).map(k=>`<option value="${k}"${k==tr.k?' selected':''}>${INST[k].n}</option>`).join('');
+  const oct=I.r?'':`<select data-a="oct" aria-label="Octave">${[-1,0,1].map(o=>`<option value="${o}"${o==tr.o?' selected':''}>Oct ${o>0?'+':''}${o}</option>`).join('')}</select>`;
+  const lbs=Array.from({length:R},(_,r)=>`<div>${I.r?I.r[r]:lab(r,tr.o)}</div>`).join('');
+  const cols=tr.s.map((s,i)=>`<div class="col${i==S.cur?' cur':''}" data-i="${i}" style="width:${S.sync?s.d*PPB:TW}px"><button class="du" data-a="dur" title="Tile length in beats">${DL[s.d]}</button>${Array.from({length:R},(_,r)=>`<i class="cell${s.n.includes(r)?' on':''}" data-a="cell" data-r="${r}"></i>`).join('')}</div>`).join('');
+  return `<section class="trk" data-t="${ti}" style="--c:${I.c}"><div class="hd"><select data-a="inst" aria-label="Instrument">${opts}</select>${oct}<input type="range" data-a="vol" min="0" max="1" step=".05" value="${tr.v}" aria-label="Volume"><button data-a="add">+ tile</button><button data-a="del">− tile</button><button data-a="rm" aria-label="Remove instrument">✕</button></div><div class="bd"><div class="lb"><div class="sp"></div>${lbs}</div>${cols}</div></section>`}).join('')+'<div id="ph"></div>'}
+$('in').addEventListener('click',e=>{
+ const el=e.target.closest('[data-a]');if(!el)return;
+ const a=el.dataset.a,tr=S.tracks[+el.closest('.trk').dataset.t],col=el.closest('.col'),ci=col?+col.dataset.i:0;
+ if(a=='cell'){const s=tr.s[ci],r=+el.dataset.r,k=s.n.indexOf(r);
+  if(k<0){s.n.push(r);pv((c,m,t)=>note(c,m,tr,r,t,Math.min(secs(s),1.5)))}else s.n.splice(k,1);
+  S.cur=ci;render()}
+ else if(a=='dur'){const s=tr.s[ci];s.d=DUR[(DUR.indexOf(s.d)+1)%DUR.length];render()}
+ else if(a=='add'){tr.s.push({n:[],d:1});render()}
+ else if(a=='del'){if(tr.s.length>1)tr.s.pop();S.cur=Math.min(S.cur,maxLen()-1);render()}
+ else if(a=='rm'){S.tracks.splice(S.tracks.indexOf(tr),1);S.cur=Math.min(S.cur,Math.max(0,maxLen()-1));render()}});
+$('in').addEventListener('input',e=>{
+ const el=e.target,a=el.dataset.a,tr=S.tracks[+el.closest('.trk').dataset.t];
+ if(a=='inst'){tr.k=el.value;const R=INST[tr.k].r?4:15;tr.s.forEach(s=>s.n=s.n.filter(r=>r<R));render()}
+ else if(a=='oct'){tr.o=+el.value;render()}
+ else if(a=='vol')tr.v=+el.value});
+$('ni').innerHTML=Object.keys(INST).map(k=>`<option value="${k}">${INST[k].n}</option>`).join('');
+$('addt').onclick=()=>{S.tracks.push(mk($('ni').value));render()};
+$('play').onclick=play;$('pause').onclick=pause;$('stop').onclick=stop;
+$('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);
+$('bpm').oninput=e=>{S.bpm=Math.max(40,Math.min(240,+e.target.value||100))};
+$('sync').onchange=e=>{S.sync=e.target.checked;render()};
+document.addEventListener('keydown',e=>{if(/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+ if(e.code=='Space'){e.preventDefault();AC&&!st.paused?pause():play()}
+ else if(e.code=='ArrowLeft')go(-1);else if(e.code=='ArrowRight')go(1)});
+
+/* ---------- export ---------- */
+const i16=a=>{const o=new Int16Array(a.length);for(let i=0;i<a.length;i++)o[i]=Math.max(-1,Math.min(1,a[i]))*32767;return o};
+function wavBlob(b){const ch=b.numberOfChannels,n=b.length,sr=b.sampleRate,ab=new ArrayBuffer(44+n*ch*2),v=new DataView(ab);
+ const w=(o,s)=>[...s].forEach((x,i)=>v.setUint8(o+i,x.charCodeAt(0)));
+ w(0,'RIFF');v.setUint32(4,36+n*ch*2,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);v.setUint32(24,sr,true);v.setUint32(28,sr*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*ch*2,true);
+ const d=Array.from({length:ch},(_,i)=>i16(b.getChannelData(i)));let p=44;
+ for(let i=0;i<n;i++)for(let c=0;c<ch;c++){v.setInt16(p,d[c][i],true);p+=2}
+ return new Blob([ab],{type:'audio/wav'})}
+function mp3Blob(b){const enc=new lamejs.Mp3Encoder(2,b.sampleRate,128),L=i16(b.getChannelData(0)),R=i16(b.getChannelData(b.numberOfChannels>1?1:0)),out=[];
+ for(let i=0;i<L.length;i+=1152){const x=enc.encodeBuffer(L.subarray(i,i+1152),R.subarray(i,i+1152));if(x.length)out.push(x)}
+ out.push(enc.flush());return new Blob(out,{type:'audio/mpeg'})}
+async function exp(fmt){
+ const tot=Math.max(...S.tracks.map(t=>t.s.reduce((a,s)=>a+secs(s),0)));
+ if(!S.tracks.some(t=>t.s.some(s=>s.n.length))){alert('Add at least one note first.');return}
+ $('msg').textContent='Rendering…';
+ const oc=new OfflineAudioContext(2,Math.ceil(44100*(tot+2)),44100),m=oc.createGain();m.gain.value=.8;m.connect(oc.destination);
+ sched(oc,m,.05,0);const buf=await oc.startRendering();
+ let blob,ext=fmt;
+ if(fmt=='mp3'){if(window.lamejs)blob=mp3Blob(buf);else{blob=wavBlob(buf);ext='wav';alert('MP3 encoder could not load (offline?). Saved as WAV instead.')}}
+ else blob=wavBlob(buf);
+ const a=document.createElement('a'),nm=$('name').value.trim().replace(/[^\w\- ]+/g,'')||'my-track';
+ a.href=URL.createObjectURL(blob);a.download=nm+'.'+ext;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+ $('msg').textContent='Saved '+nm+'.'+ext}
+$('wav').onclick=()=>exp('wav');$('mp3').onclick=()=>exp('mp3');
+render();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js" async></script>
+</body></html>
