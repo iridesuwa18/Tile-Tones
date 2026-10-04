@@ -46,6 +46,17 @@ button,select,input{text-transform:inherit;letter-spacing:inherit}
 h1{letter-spacing:.1em}
 .du,.lb,#msg{letter-spacing:.04em}
 @media(max-width:600px){header{gap:6px;padding:8px}#bpm{width:52px}#name{width:100px}}
+.wz{margin:10px 12px;padding:10px;border:2px solid var(--ln);border-radius:3px;background:#2b164666}
+.wz summary{cursor:pointer;font-weight:600;color:#ffd6ee}
+.wz p{margin:8px 0;max-width:620px;line-height:1.5}
+.wz .row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.tab.act,.mk{background:var(--pk);border-color:var(--pk);color:#3a1660}
+.cell.ht{outline:2px dotted #ffd6ee;outline-offset:-2px}
+.cs{display:flex;padding-left:60px;margin-bottom:8px}
+.cb{flex:none;border-left:1px solid var(--ln);padding:0 4px;font-size:11px;height:34px;overflow:hidden;white-space:nowrap}
+.cb.sb{border-left:2px solid var(--pk)}
+.cb b{display:block;color:#ffd6ee;height:16px}
+.fb{color:#ffd6ee}
 </style></head><body>
 <header>
  <h1>Tile Tones ✦</h1>
@@ -58,6 +69,7 @@ h1{letter-spacing:.1em}
  <div class="g"><select id="ni"></select><button id="addt">Add instrument</button></div>
  <div class="g"><button id="wav">Save WAV</button><button id="mp3">Save MP3</button></div>
 </header>
+<details class="wz" open><summary>✦ Song helper: plan and write your song step by step</summary><div id="wzb"></div></details>
 <p id="msg">Pick a full track to start, or use + Sample on a track to drop a clip in at the cursor. Click a cell to place a note. Click a tile's top number to change its length (in beats). Sync mode stretches tiles to real time so every instrument lines up.</p>
 <div id="sc"><div id="in"></div></div>
 <script src="full-track-samples.js"></script>
@@ -92,18 +104,20 @@ const SY={
   const o=c.createOscillator(),lg=c.createGain();o.frequency.value=5.5;lg.gain.value=9;o.connect(lg);lg.connect(a.detune);lg.connect(b.detune);o.start(t);o.stop(e+.05)},
  digital(c,d,f,t,u){const[g,e]=env(c,d,t,u,.16,.005,.04,.3);osc(c,'square',f,t,e,lp(c,g,3500))}};
 const CY=[[1.6,5000,9500,.5],[1.1,6500,4500,.3],[.5,7000,10000,.4],[1,3500,6000,.45]];
+function mh(c,d,t,len,g,hp){const e=c.createGain(),h=c.createBiquadFilter();h.type='highpass';h.frequency.value=hp;e.gain.setValueAtTime(g,t);e.gain.exponentialRampToValueAtTime(.001,t+len);h.connect(e);e.connect(d);[2,3,4.16,5.43,6.79,8.21].forEach(x=>osc(c,'square',x*205.3,t,t+len,h))}
 function perc(c,d,k,r,t,u){
  if(k=='drums'){
-  if(r==0)sw(c,d,t,160,42,.15,.4,1);
-  else if(r==1){nz(c,d,t,.2,'highpass',1800,.7,.7);sw(c,d,t,200,150,.08,.12,.4)}
-  else if(r==2)sw(c,d,t,220,100,.18,.35,.8);
-  else nz(c,d,t,.06,'highpass',7000,.7,.5);
- }else{const[l,h,b,g]=CY[r],n=Math.max(.15,Math.min(l,u+.1));nz(c,d,t,n,'highpass',h,.5,g);nz(c,d,t,n,'bandpass',b,.6,g*.7)}}
+  if(r==0){sw(c,d,t,150,45,.1,.5,1.6);sw(c,d,t,60,40,.2,.4,.9);nz(c,d,t,.02,'bandpass',3000,.8,.7)}
+  else if(r==1){nz(c,d,t,.24,'highpass',1400,.8,1.1);nz(c,d,t,.1,'bandpass',3500,1,.7);sw(c,d,t,230,170,.07,.14,.9);sw(c,d,t,350,250,.05,.1,.5)}
+  else if(r==2){sw(c,d,t,210,95,.2,.5,1.4);nz(c,d,t,.03,'bandpass',2000,1,.4)}
+  else{mh(c,d,t,.07,.16,7000);nz(c,d,t,.06,'highpass',9000,.7,.45)}
+ }else{const[l,h,b,g]=CY[r],n=Math.max(.15,Math.min(l,u+.1));nz(c,d,t,n,'highpass',h,.5,g*1.3);nz(c,d,t,n,'bandpass',b,.6,g);mh(c,d,t,n,g*.22,h)}}
 function note(c,d,tr,r,t,u){
  if(INST[tr.k].r)return perc(c,d,tr.k,r,t,u);
  SY[tr.k](c,d,440*2**((mid(r,tr.o)-69)/12),t,u)}
 
 /* ---------- scheduling ---------- */
+function mast(c){const p=c.createDynamicsCompressor(),m=c.createGain();p.threshold.value=-14;p.knee.value=10;p.ratio.value=6;m.gain.value=1.1;m.connect(p);p.connect(c.destination);return m}
 const secs=s=>s.d*60/S.bpm;
 function sched(c,d,t0,from){let mx=0;
  S.tracks.forEach(tr=>{const g=c.createGain();g.gain.value=tr.v;g.connect(d);let t=t0;
@@ -111,11 +125,11 @@ function sched(c,d,t0,from){let mx=0;
   mx=Math.max(mx,t-t0)});return mx}
 const maxLen=()=>Math.max(...S.tracks.map(t=>t.s.length));
 let AC=null,st=null,PV=null;
-function pv(fn){if(!PV)PV=new AudioContext();if(PV.state=='suspended')PV.resume();const m=PV.createGain();m.gain.value=.8;m.connect(PV.destination);fn(PV,m,PV.currentTime+.02)}
+function pv(fn){if(!PV)PV=new AudioContext();if(PV.state=='suspended')PV.resume();const m=mast(PV);fn(PV,m,PV.currentTime+.02)}
 function preview(i){pv((c,m,t)=>S.tracks.forEach(tr=>{const s=tr.s[i];if(s)s.n.forEach(r=>note(c,m,tr,r,t,Math.min(secs(s),1.5)))}))}
 function play(){
  if(AC&&st.paused){AC.resume();st.paused=0;return}
- stop();AC=new AudioContext();const m=AC.createGain();m.gain.value=.8;m.connect(AC.destination);
+ stop();AC=new AudioContext();const m=mast(AC);
  const t0=AC.currentTime+.08,tot=sched(AC,m,t0,S.cur);st={t0,tot,paused:0,from:S.cur};tick()}
 function pause(){if(AC&&!st.paused){AC.suspend();st.paused=1}}
 function stop(){if(AC){AC.close();AC=null}clearPly()}
@@ -133,12 +147,12 @@ function go(n){const m=maxLen()-1;S.cur=Math.max(0,Math.min(m,S.cur+n));render()
 
 /* ---------- UI ---------- */
 function render(){
- $('in').innerHTML=S.tracks.map((tr,ti)=>{
+ $('in').innerHTML=strip()+S.tracks.map((tr,ti)=>{
   const I=INST[tr.k],R=I.r?I.r.length:15,sl=(SINGLE[tr.k]||[]).map((x,i)=>`<option value="${i}">${x.n}</option>`).join('');
   const opts=Object.keys(INST).map(k=>`<option value="${k}"${k==tr.k?' selected':''}>${INST[k].n}</option>`).join('');
   const oct=I.r?'':`<select data-a="oct" aria-label="Octave">${[-1,0,1].map(o=>`<option value="${o}"${o==tr.o?' selected':''}>Oct ${o>0?'+':''}${o}</option>`).join('')}</select>`;
   const lbs=Array.from({length:R},(_,r)=>`<div>${I.r?I.r[r]:lab(r,tr.o)}</div>`).join('');
-  const cols=tr.s.map((s,i)=>`<div class="col${i==S.cur?' cur':''}" data-i="${i}" style="width:${S.sync?s.d*PPB:TW}px"><button class="du" data-a="dur" title="Tile length in beats">${DL[s.d]}</button>${Array.from({length:R},(_,r)=>`<i class="cell${s.n.includes(r)?' on':''}" data-a="cell" data-r="${r}"></i>`).join('')}</div>`).join('');
+  let bt=0;const cols=tr.s.map((s,i)=>{const b0=bt;bt+=s.d;return `<div class="col${i==S.cur?' cur':''}" data-i="${i}" style="width:${S.sync?s.d*PPB:TW}px"><button class="du" data-a="dur" title="Tile length in beats">${DL[s.d]}</button>${Array.from({length:R},(_,r)=>`<i class="cell${s.n.includes(r)?' on':''}${hint(tr,b0,r)}" data-a="cell" data-r="${r}"></i>`).join('')}</div>`}).join('');
   return `<section class="trk" data-t="${ti}" style="--c:${I.c}"><div class="hd"><select data-a="inst" aria-label="Instrument">${opts}</select><select data-a="smp" aria-label="Insert sample at cursor"><option value="">+ Sample</option>${sl}</select>${oct}<input type="range" data-a="vol" min="0" max="1" step=".05" value="${tr.v}" aria-label="Volume"><button class="ib" data-a="add" title="Add tile" aria-label="Add tile">+</button><button class="ib" data-a="del" title="Remove last tile" aria-label="Remove last tile">−</button><button class="ib" data-a="rm" title="Remove instrument" aria-label="Remove instrument">×</button></div><div class="bd"><div class="lb"><div class="sp"></div>${lbs}</div>${cols}</div></section>`}).join('')+'<div id="ph"></div>'}
 $('in').addEventListener('click',e=>{
  const el=e.target.closest('[data-a]');if(!el)return;
@@ -171,6 +185,58 @@ $('ft').onchange=e=>{const f=FULL[e.target.value];e.target.value='';if(!f)return
  if(S.tracks.some(t=>t.s.some(s=>s.n.length))&&!confirm('Replace your current tracks with "'+f.name+'"?'))return;
  stop();S.bpm=f.bpm;$('bpm').value=f.bpm;S.cur=0;
  S.tracks=f.tracks.map(t=>({k:t.k,o:t.o||0,v:t.v??.8,s:parse(t.p,t.k,t.o||0)}));render()};
+const W={step:1,min:2,feel:'happy',prog:'pop',inst:'piano',hints:true,iv:2,hi:'same',fb:''};
+const CH={C:[0,2,4],Dm:[1,3,5],Em:[2,4,6],F:[3,5,0],G:[4,6,1],Am:[5,0,2]},PR={pop:'C G Am F',emo:'Am F C G',classic:'C Am F G',drive:'Am G F G'},FEEL={calm:80,happy:110,energetic:130,sad:70,dreamy:85};
+const SEC={1:[['Intro',1],['Verse',3],['Chorus',3],['Outro',1]],2:[['Intro',1],['Verse',2],['Chorus',2],['Verse',2],['Chorus',2],['Outro',1]],3:[['Intro',1],['Verse',2],['Chorus',2],['Verse',2],['Chorus',2],['Bridge',1],['Chorus',2],['Outro',1]],4:[['Intro',1],['Verse',2],['Pre',1],['Chorus',2],['Verse',2],['Pre',1],['Chorus',2],['Bridge',2],['Chorus',2],['Chorus',2],['Outro',1]]};
+const IVT={2:'A <b>third</b> means moving down the scale from each melody note, skipping one. Thirds blend sweetly, so they are the most common harmony. Each harmony tile sits 2 rows below its melody tile.',4:'A <b>fifth</b> means moving down four notes (skipping three). It sounds open and strong, like a power chord. Each harmony tile sits 4 rows below its melody tile.',7:'An <b>octave</b> is the same note, lower. It makes the tune sound bigger without changing it. Each harmony tile sits on the same row as the melody, on an octave-lower track.'};
+const IN=[['piano','Piano'],['guitar','Guitar'],['violin','Violin'],['digital','Digital']];
+const fmt=x=>Math.floor(x/60)+':'+String(Math.round(x%60)).padStart(2,'0'),mt=()=>S.tracks.find(t=>t.w=='melody');
+const tiles=tr=>{let t=0;return tr.s.map(s=>({s,b0:(t+=s.d)-s.d}))};
+function tileAt(tr,b){let t=0;for(const s of tr.s){if(b<t+s.d)return s;t+=s.d}}
+function hint(tr,b0,r){if(!S.plan||!W.hints||!tr.w)return'';const P=S.plan,q=b0%4;
+ if(tr.w=='melody')return CH[P.prog[Math.floor(b0/4)%P.prog.length]].includes((14-r)%7)?' ht':'';
+ if(tr.w=='beat')return(r==0&&q%2==0)||(r==1&&q%2==1)||r==3?' ht':'';
+ const m=mt(),t=m&&tileAt(m,b0);return t&&t.n.some(x=>(tr.iv==7?x:x+tr.iv>14?x+tr.iv-7:x+tr.iv)==r)?' ht':''}
+function strip(){const P=S.plan;if(!P||!S.sync)return'';let h='<div class="cs">';
+ P.secs.forEach(c=>{for(let k=0;k<c.bars;k++)h+=`<div class="cb${k?'':' sb'}" style="width:${4*PPB}px"><b>${k?'':c.n}</b><span>${P.prog[(c.b0+k)%P.prog.length]}</span></div>`});return h+'</div>'}
+const sel=(f,o)=>`<select data-f="${f}" aria-label="${f}">${o.map(([v,t])=>`<option value="${v}"${W[f]==v?' selected':''}>${t}</option>`).join('')}</select>`;
+const home=()=>PR[W.prog].startsWith('Am')?'A':'C';
+function wz(){const hb=`<label class="g"><input type="checkbox" data-f="hints"${W.hints?' checked':''}> Show dotted hints</label>`,P=S.plan,
+ map=P?`<p>Your song: ${P.bars} bars, about ${fmt(P.bars*240/P.bpm)} at ${P.bpm} BPM. The chords for every bar appear above your tracks. Tap a section to jump to it:</p><div class="row">${P.secs.map(c=>`<button data-w="sec" data-b="${c.b0*4}">${c.n} · ${c.bars} bars · ${fmt(c.b0*240/P.bpm)}</button>`).join('')}</div>`:'';
+ const T={
+1:`<p>Plan first. Pick how long your song should be and the helper sizes everything to fit: tempo, number of bars, and a split into intro, verses, choruses and more. It only builds the empty canvas. You write the music.</p><div class="row">${sel('min',[[1,'1 min'],[2,'2 min'],[3,'3 min'],[4,'4 min']])}${sel('feel',[['calm','Calm'],['happy','Happy'],['energetic','Energetic'],['sad','Sad'],['dreamy','Dreamy']])}${sel('prog',[['pop','Bright (C G Am F)'],['emo','Emotional (Am F C G)'],['classic','Classic (C Am F G)'],['drive','Driving (Am G F G)']])}${sel('inst',IN)}<button class="mk" data-w="plan">Set up song</button></div>${map}`,
+2:`<p>Write the melody yourself. The strip above the grid names the chord for each bar. Tiles with a dotted outline are notes from that chord, so they always sound good. Start each bar on a dotted tile, move in small steps between, and end on the home note (${home()}). Tap a tile's top number to make a note longer or shorter.</p><div class="row">${hb}<button class="mk" data-w="chkm">Check my melody</button></div>`,
+3:`<p>Now the drums. The kick (low boom) goes on beats 1 and 3, the snare (clap) on beats 2 and 4, and the hi-hat ticks on every beat. Dotted tiles mark those spots. Click them to place hits, then add your own twists like an extra kick.</p><div class="row"><button class="mk" data-w="addb">Add drum track</button>${hb}<button data-w="chkb">Check my beat</button></div>`,
+4:`<p>A harmony is a second line played along with the melody. ${IVT[W.iv]} Dotted tiles show where each note goes. Click them in yourself.</p><p>The same instrument sounds thick and blended. A different one sounds like a second voice. Lower its volume to keep the melody in front.</p><div class="row">${sel('iv',[[2,'Third (sweet)'],[4,'Fifth (strong)'],[7,'Octave (big)']])}${sel('hi',[['same','Same instrument'],...IN])}<button class="mk" data-w="addh">Add harmony track</button>${hb}<button data-w="chkh">Check my harmony</button></div>`}[W.step];
+ $('wzb').innerHTML=`<div class="row">${['1 Plan','2 Melody','3 Beat','4 Harmony'].map((t,i)=>`<button class="tab${W.step==i+1?' act':''}" data-w="tab" data-s="${i+1}">${t}</button>`).join('')}</div>`+T+`<p class="fb">${W.fb}</p>`}
+function mkPlan(){if(S.tracks.some(t=>t.s.some(x=>x.n.length))&&!confirm('Start a new song? Your current tracks will be cleared.'))return;
+ const bpm=FEEL[W.feel],U=Math.max(4,Math.round(W.min*bpm/16)),sc=SEC[W.min],sum=sc.reduce((a,x)=>a+x[1],0),c=sc.map(x=>Math.max(1,Math.round(U*x[1]/sum)));
+ for(let d=U-c.reduce((a,x)=>a+x);d;){const j=c.indexOf(Math.max(...c));if(d<0&&c[j]<2)break;c[j]+=d>0?1:-1;d+=d>0?-1:1}
+ let b=0;const secs=sc.map((x,i)=>{const o={n:x[0],b0:b,bars:c[i]*4};b+=o.bars;return o});
+ S.plan={secs,bars:b,bpm,prog:PR[W.prog].split(' '),minor:home()=='A'};S.bpm=bpm;$('bpm').value=bpm;S.sync=true;$('sync').checked=true;S.tracks=[];
+ addG('melody',W.inst,0,2,{});W.step=2;W.fb='';wz()}
+function addG(w,k,o,tb,x){const P=S.plan;if(!P){W.fb='Set up your song in step 1 first.';wz();return}
+ const tr={k,o,v:w=='beat'?.9:.8,w,s:Array.from({length:P.bars*4/tb},()=>({n:[],d:tb})),...x};
+ S.tracks=S.tracks.filter(t=>t.w!=w);w=='melody'?S.tracks.unshift(tr):S.tracks.push(tr);stop();S.cur=0;render();$('sc').scrollTo({left:0});W.fb='Track added. Dotted tiles are hints.';wz()}
+function chk(w){const P=S.plan,m=mt(),L=[];if(!P||!m){W.fb='Set up your song and melody first.';wz();return}
+ const T=tiles(m).filter(x=>x.s.n.length);
+ if(w=='m'){const bars=new Set(T.map(x=>Math.floor(x.b0/4))),A=T.filter(x=>x.b0%4==0),g=A.filter(x=>x.s.n.some(r=>CH[P.prog[Math.floor(x.b0/4)%P.prog.length]].includes((14-r)%7))),l=T[T.length-1],e=[];
+  for(let b=0;b<P.bars&&e.length<6;b++)if(!bars.has(b))e.push(b+1);
+  L.push(`${T.length} notes across ${bars.size} of ${P.bars} bars.`,A.length?`${g.length} of ${A.length} bar openings land on a chord note${g.length<A.length?'. Try dotted tiles on beat 1.':'. Strong anchors!'}`:'Start some bars on beat 1 to anchor the tune.',l?((14-l.s.n[0])%7==(P.minor?5:0)?'It ends on the home note, so it feels finished.':`Try ending on ${P.minor?'A':'C'} so it feels finished.`):'',e.length?'Empty bars: '+e.join(', ')+'.':'No empty bars.')}
+ else if(w=='b'){const d=S.tracks.find(t=>t.w=='beat');if(!d){W.fb='Add the drum track first.';wz();return}
+  const D=tiles(d),k=D.filter(x=>x.b0%4==0&&x.s.n.includes(0)).length,n=D.filter(x=>x.b0%2==1&&x.s.n.includes(1)).length;
+  L.push(`Kick on beat 1 in ${k} of ${P.bars} bars.`,`Snare on beat 2 or 4 in ${n} of ${P.bars*2} spots.`,k<P.bars||n<P.bars*2?'Fill the dotted tiles for a steady groove.':'Solid groove! Try adding an extra kick or a fill before a new section.')}
+ else{const h=S.tracks.find(t=>t.w=='harmony');if(!h){W.fb='Add the harmony track first.';wz();return}
+  let ok=0,tot=0;T.forEach(x=>x.s.n.forEach(r=>{tot++;const t=tileAt(h,x.b0);if(t&&t.n.includes(h.iv==7?r:r+h.iv>14?r+h.iv-7:r+h.iv))ok++}));
+  L.push(`${ok} of ${tot} melody notes have a matching harmony note.`,ok<tot?'Dotted tiles show where the rest go.':'Locked in! Try a different instrument for a new colour.')}
+ W.fb=L.filter(Boolean).join('<br>');wz()}
+$('wzb').addEventListener('click',e=>{const b=e.target.closest('[data-w]');if(!b)return;const w=b.dataset.w;
+ if(w=='tab'){W.step=+b.dataset.s;W.fb='';wz()}else if(w=='plan')mkPlan();else if(w=='sec')$('sc').scrollTo({left:b.dataset.b*PPB,behavior:'smooth'});
+ else if(w=='addb')addG('beat','drums',0,1,{});
+ else if(w=='addh'){const m=mt();if(!m){W.fb='Write a melody first (step 2).';wz();return}const iv=+W.iv;addG('harmony',W.hi=='same'?m.k:W.hi,iv==7?-1:0,2,{iv})}
+ else chk(w.slice(3))});
+$('wzb').addEventListener('input',e=>{const f=e.target.dataset.f;if(!f)return;W[f]=f=='hints'?e.target.checked:e.target.value;if(f=='hints')render();if(f=='iv')wz()});
+wz();
 $('ni').innerHTML=Object.keys(INST).map(k=>`<option value="${k}">${INST[k].n}</option>`).join('');
 $('addt').onclick=()=>{S.tracks.push(mk($('ni').value));render()};
 $('play').onclick=play;$('pause').onclick=pause;$('stop').onclick=stop;
@@ -199,7 +265,7 @@ async function exp(fmt){
  const tot=Math.max(...S.tracks.map(t=>t.s.reduce((a,s)=>a+secs(s),0)));
  if(!S.tracks.some(t=>t.s.some(s=>s.n.length))){alert('Add at least one note first.');return}
  $('msg').textContent='Rendering…';
- const oc=new OfflineAudioContext(2,Math.ceil(44100*(tot+2)),44100),m=oc.createGain();m.gain.value=.8;m.connect(oc.destination);
+ const oc=new OfflineAudioContext(2,Math.ceil(44100*(tot+2)),44100),m=mast(oc);
  sched(oc,m,.05,0);const buf=await oc.startRendering();
  let blob,ext=fmt;
  if(fmt=='mp3'){if(window.lamejs)blob=mp3Blob(buf);else{blob=wavBlob(buf);ext='wav';alert('MP3 encoder could not load (offline?). Saved as WAV instead.')}}
