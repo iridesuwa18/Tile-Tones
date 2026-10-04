@@ -64,6 +64,10 @@ h1{letter-spacing:.1em}
 .mp p{margin:6px 0;line-height:1.5}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
 .ed{overflow-x:auto}
+.bd{position:relative}
+.ph{position:absolute;top:0;bottom:0;left:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;opacity:.9;display:none;z-index:1;pointer-events:none}
+.bar{height:8px;background:#ffffff26;border-radius:4px;overflow:hidden;margin:10px 0 0}
+.bar i{display:block;height:100%;width:0;background:var(--pk);transition:width .3s}
 #sv{position:fixed;inset:0;background:#1a0a30e6;z-index:30;display:grid;place-items:center;padding:12px}
 #sv[hidden]{display:none}
 .svp{background:#3a2070;border:2px solid var(--ln);border-radius:4px;padding:22px 26px;text-align:center;max-width:320px;width:100%}
@@ -85,7 +89,7 @@ button:disabled{opacity:.5;cursor:default}
  <div class="g"><select id="ni"></select><button id="addt">Add instrument</button></div>
  <div class="g"><button id="wav">Save WAV</button><button id="mp3">Save MP3</button></div>
 </header>
-<div id="sv" hidden role="status" aria-live="polite"><div class="svp" id="svp"><div class="spin"></div><div id="svt">Saving…</div><div id="svs">Please keep this tab open.</div></div></div>
+<div id="sv" hidden role="status" aria-live="polite"><div class="svp" id="svp"><div class="spin"></div><div id="svt">Saving…</div><div class="bar"><i id="svb"></i></div><div id="svs">Please keep this tab open.</div></div></div>
 <div id="md" hidden><div class="mp" id="mp"></div></div>
 <p id="msg">Pick a full track to start, or use + Sample on a track to drop a clip in at the cursor. Click a cell to place a note. Click a tile's top number to change its length (in beats). Sync mode stretches tiles to real time so every instrument lines up.</p>
 <div id="sc"><div id="in"></div></div>
@@ -136,29 +140,44 @@ function note(c,d,tr,r,t,u){
 /* ---------- scheduling ---------- */
 function mast(c){const p=c.createDynamicsCompressor(),m=c.createGain();p.threshold.value=-14;p.knee.value=10;p.ratio.value=6;m.gain.value=1.1;m.connect(p);p.connect(c.destination);return m}
 const secs=s=>s.d*60/S.bpm;
-function sched(c,d,t0,from){let mx=0;
- S.tracks.forEach(tr=>{const g=c.createGain();g.gain.value=tr.v;g.connect(d);let t=t0;
-  for(let i=from;i<tr.s.length;i++){const s=tr.s[i],u=secs(s);s.n.forEach(r=>note(c,g,tr,r,t,u));t+=u}
-  mx=Math.max(mx,t-t0)});return mx}
+const LOOK=12;
+function schedTrack(c,d,tr,sn,t,i,lim,bpm){
+ while(i<sn.length&&t<lim){const s=sn[i],u=s.d*60/bpm;s.n.forEach(r=>note(c,d,tr,r,t,u));t+=u;i++}
+ return[t,i]}
 const maxLen=()=>Math.max(...S.tracks.map(t=>t.s.length));
 let AC=null,st=null,PV=null;
-function pv(fn){if(!PV)PV=new AudioContext();if(PV.state=='suspended')PV.resume();const m=mast(PV);fn(PV,m,PV.currentTime+.02)}
+const unlock=()=>{try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}};
+function pv(fn){unlock();if(!PV)PV=new AudioContext();if(PV.state=='suspended')PV.resume();const m=mast(PV);fn(PV,m,PV.currentTime+.02)}
 function preview(i){pv((c,m,t)=>S.tracks.forEach(tr=>{const s=tr.s[i];if(s)s.n.forEach(r=>note(c,m,tr,r,t,Math.min(secs(s),1.5)))}))}
+/* Playback schedules notes in small chunks just ahead of the clock, so long songs never freeze the page or start late. */
+function pump(){if(!AC||!st)return;const lim=AC.currentTime+LOOK;st.c.forEach(k=>{const r=schedTrack(AC,k.g,k.tr,k.sn,k.t,k.i,lim,st.bpm);k.t=r[0];k.i=r[1]})}
 function play(){
  if(AC&&st.paused){AC.resume();st.paused=0;return}
- stop();AC=new AudioContext();const m=mast(AC);
- const t0=AC.currentTime+.08,tot=sched(AC,m,t0,S.cur);st={t0,tot,paused:0,from:S.cur};tick()}
+ stop();unlock();AC=new AudioContext();if(AC.state=='suspended')AC.resume();
+ const m=mast(AC),bpm=S.bpm,from=S.cur,t0=AC.currentTime+.15;
+ const c=S.tracks.map(tr=>{const g=AC.createGain();g.gain.value=tr.v;g.connect(m);return{tr,g,sn:tr.s.map(x=>({n:[...x.n],d:x.d})),t:t0,i:from}});
+ const tot=Math.max(0,...c.map(k=>k.sn.slice(from).reduce((a,x)=>a+x.d*60/bpm,0)));
+ st={t0,tot,paused:0,from,bpm,c,hl:[],free:0,timer:0};
+ c.forEach(k=>{const r=schedTrack(AC,k.g,k.tr,k.sn,k.t,k.i,t0+1.5,bpm);k.t=r[0];k.i=r[1]});
+ st.timer=setInterval(pump,250);setTimeout(pump,0);tick();
+ const a=AC;setTimeout(()=>{if(AC===a&&!st.paused&&a.state!='running'){a.resume();$('msg').textContent='The browser is blocking audio. Click Play once more, and check the tab is not muted.'}},600)}
 function pause(){if(AC&&!st.paused){AC.suspend();st.paused=1}}
-function stop(){if(AC){AC.close();AC=null}clearPly()}
-function clearPly(){$('in').querySelectorAll('.col.ply').forEach(e=>e.classList.remove('ply'));$('ph')&&($('ph').style.display='none')}
+function stop(){if(st&&st.timer){clearInterval(st.timer);st.timer=0}if(AC){AC.close();AC=null}clearPly()}
+function clearPly(){const r=$('in');r.querySelectorAll('.col.ply').forEach(e=>e.classList.remove('ply'));r.querySelectorAll('.ph').forEach(e=>e.style.display='none')}
 function tick(){
  if(!AC)return;const e=AC.currentTime-st.t0;
  if(e>st.tot+(S.loop?0:.3)){if(S.loop){stop();play()}else stop();return}
- const idx=S.tracks.map(tr=>{let t=0;for(let i=st.from;i<tr.s.length;i++){t+=secs(tr.s[i]);if(e<t)return i}return -1});
- $('in').querySelectorAll('.col').forEach(el=>el.classList.toggle('ply',e>=0&&idx[+el.closest('.trk').dataset.t]==+el.dataset.i));
- const ph=$('ph');
- if(S.sync&&st.from==0&&e>=0){ph.style.display='block';ph.style.left=(60+e*S.bpm/60*PPB)+'px'}else ph.style.display='none';
+ const pos=st.c.map(k=>{let t=0;for(let i=st.from;i<k.sn.length;i++){const u=k.sn[i].d*60/st.bpm;if(e<t+u)return[i,(e-t)/u];t+=u}return null});
+ let lead=null;
+ $('in').querySelectorAll('.trk').forEach((tk,ti)=>{const x=e>=0&&pos[ti],ph=tk.querySelector('.ph');
+  if(!x){ph.style.display='none';return}
+  let h=st.hl[ti];
+  if(!h||h.i!=x[0]||(h.el&&!h.el.isConnected)){if(h&&h.el)h.el.classList.remove('ply');const el=tk.querySelector('.col[data-i=\"'+x[0]+'\"]');if(el)el.classList.add('ply');h=st.hl[ti]={i:x[0],el}}
+  if(h.el){const px=h.el.offsetLeft+x[1]*h.el.offsetWidth;ph.style.display='block';ph.style.transform='translateX('+px+'px)';if(lead==null)lead=px}else ph.style.display='none'});
+ const sc=$('sc');
+ if(lead!=null&&performance.now()>st.free&&!st.paused){const w=sc.clientWidth;if(lead<sc.scrollLeft+60||lead>sc.scrollLeft+w-40)sc.scrollLeft=Math.max(0,lead-w*.25)}
  requestAnimationFrame(tick)}
+['wheel','touchmove','pointerdown'].forEach(ev=>$('sc').addEventListener(ev,()=>{if(st)st.free=performance.now()+3000},{passive:true}));
 function go(n){const m=maxLen()-1;S.cur=Math.max(0,Math.min(m,S.cur+n));render();preview(S.cur);
  const c=$('in').querySelector('.col.cur');c&&c.scrollIntoView({inline:'center',block:'nearest'})}
 
@@ -170,7 +189,7 @@ function render(){
   const oct=I.r?'':`<select data-a="oct" aria-label="Octave">${[-1,0,1].map(o=>`<option value="${o}"${o==tr.o?' selected':''}>Oct ${o>0?'+':''}${o}</option>`).join('')}</select>`;
   const lbs=Array.from({length:R},(_,r)=>`<div>${I.r?I.r[r]:lab(r,tr.o)}</div>`).join('');
   let bt=0;const cols=tr.s.map((s,i)=>{const b0=bt;bt+=s.d;return `<div class="col${i==S.cur?' cur':''}" data-i="${i}" style="width:${S.sync?s.d*PPB:TW}px"><button class="du" data-a="dur" title="Tile length in beats">${DL[s.d]}</button>${Array.from({length:R},(_,r)=>`<i class="cell${s.n.includes(r)?' on':''}" data-a="cell" data-r="${r}"></i>`).join('')}</div>`}).join('');
-  return `<section class="trk" data-t="${ti}" style="--c:${I.c}"><div class="hd"><select data-a="inst" aria-label="Instrument">${opts}</select><select data-a="smp" aria-label="Insert sample at cursor"><option value="">+ Sample</option>${sl}</select>${oct}<input type="range" data-a="vol" min="0" max="1" step=".05" value="${tr.v}" aria-label="Volume"><button class="ib" data-a="add" title="Add tile" aria-label="Add tile">+</button><button class="ib" data-a="del" title="Remove last tile" aria-label="Remove last tile">−</button><button class="ib" data-a="rm" title="Remove instrument" aria-label="Remove instrument">×</button></div><div class="bd"><div class="lb"><div class="sp"></div>${lbs}</div>${cols}</div></section>`}).join('')+'<div id="ph"></div>'}
+  return `<section class="trk" data-t="${ti}" style="--c:${I.c}"><div class="hd"><select data-a="inst" aria-label="Instrument">${opts}</select><select data-a="smp" aria-label="Insert sample at cursor"><option value="">+ Sample</option>${sl}</select>${oct}<input type="range" data-a="vol" min="0" max="1" step=".05" value="${tr.v}" aria-label="Volume"><button class="ib" data-a="add" title="Add tile" aria-label="Add tile">+</button><button class="ib" data-a="del" title="Remove last tile" aria-label="Remove last tile">−</button><button class="ib" data-a="rm" title="Remove instrument" aria-label="Remove instrument">×</button></div><div class="bd"><div class="lb"><div class="sp"></div>${lbs}</div>${cols}<div class="ph"></div></div></section>`}).join('')}
 $('in').addEventListener('click',e=>{
  const el=e.target.closest('[data-a]');if(!el)return;
  const a=el.dataset.a,tr=S.tracks[+el.closest('.trk').dataset.t],col=el.closest('.col'),ci=col?+col.dataset.i:0;
@@ -186,7 +205,7 @@ $('in').addEventListener('input',e=>{
  if(a=='smp'){if(el.value!=='')ins(tr,+el.value);else render();return}
  if(a=='inst'){tr.k=el.value;const R=INST[tr.k].r?4:15;tr.s.forEach(s=>s.n=s.n.filter(r=>r<R));render()}
  else if(a=='oct'){tr.o=+el.value;render()}
- else if(a=='vol')tr.v=+el.value});
+ else if(a=='vol'){tr.v=+el.value;if(AC&&st){const k=st.c.find(k=>k.tr===tr);if(k)k.g.gain.value=tr.v}}});
 const FULL=window.FULL_TRACKS||[],SINGLE=window.SINGLE_SAMPLES||{};
 const DM={drums:{k:0,s:1,t:2,h:3},cymbals:{c:0,r:1,p:2,x:3}},DG={C:0,D:1,E:2,F:3,G:4,A:5,B:6};
 function parse(p,k,o){return p.split(' ').filter(Boolean).map(t=>{const[a,d]=t.split(':'),n=[];
@@ -279,10 +298,11 @@ function wavBlob(b){const ch=b.numberOfChannels,n=b.length,sr=b.sampleRate,ab=ne
  for(let i=0;i<n;i++)for(let c=0;c<ch;c++){v.setInt16(p,d[c][i],true);p+=2}
  return new Blob([ab],{type:'audio/wav'})}
 const nxt=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,30)));
-const sv=(t,sub)=>{$('svt').textContent=t;if(sub!=null)$('svs').textContent=sub};
+const fmtT=x=>x>=60?Math.floor(x/60)+'m '+String(Math.round(x%60)).padStart(2,'0')+'s':Math.max(1,Math.round(x))+'s';
+const sv=(t,sub,p)=>{$('svt').textContent=t;if(sub!=null)$('svs').textContent=sub;if(p!=null)$('svb').style.width=Math.max(0,Math.min(100,p))+'%'};
 async function mp3Blob(b){const enc=new lamejs.Mp3Encoder(2,b.sampleRate,128),L=i16(b.getChannelData(0)),R=i16(b.getChannelData(b.numberOfChannels>1?1:0)),out=[];
  for(let i=0,n=0;i<L.length;i+=1152,n++){const x=enc.encodeBuffer(L.subarray(i,i+1152),R.subarray(i,i+1152));if(x.length)out.push(x);
-  if(n%150==0){sv('Encoding MP3… '+Math.round(i/L.length*100)+'%');await nxt()}}
+  if(n%150==0){const f=i/L.length;sv('Encoding MP3… '+Math.round(f*100)+'%',null,90+f*10);await nxt()}}
  out.push(enc.flush());return new Blob(out,{type:'audio/mpeg'})}
 let busy=false;
 async function exp(fmt){
@@ -292,24 +312,27 @@ async function exp(fmt){
  busy=true;stop();
  const btns=[$('wav'),$('mp3')];btns.forEach(x=>x.disabled=true);
  $('svp').classList.remove('done');$('sv').hidden=false;
- sv('Saving '+fmt.toUpperCase()+'…','Please keep this tab open. Long songs can take a little while.');
+ sv('Saving '+fmt.toUpperCase()+'…','Keep this tab open.',0);
  $('msg').textContent='Saving…';
  try{
   await nxt();
-  sv('Building your song…');await nxt();
-  const oc=new OfflineAudioContext(2,Math.ceil(44100*(tot+2)),44100),m=mast(oc);
-  sched(oc,m,.05,0);
-  const t0=Date.now(),tm=setInterval(()=>sv('Rendering audio… '+Math.round((Date.now()-t0)/1000)+'s'),500);
-  sv('Rendering audio… 0s');await nxt();
-  let buf;try{buf=await oc.startRendering()}finally{clearInterval(tm)}
+  const dur=tot+2,oc=new OfflineAudioContext(2,Math.ceil(44100*dur),44100),m=mast(oc),n=S.tracks.length;
+  for(let ti=0;ti<n;ti++){
+   sv('Building your song… '+(ti+1)+'/'+n,'Keep this tab open.',ti/n*10);await nxt();
+   const tr=S.tracks[ti],g=oc.createGain();g.gain.value=tr.v;g.connect(m);schedTrack(oc,g,tr,tr.s,.05,0,Infinity,S.bpm)}
+  const t0=Date.now(),N=30;
+  for(let k=1;k<N;k++){const at=dur*k/N;oc.suspend(at).then(()=>{const f=at/dur,el=(Date.now()-t0)/1000;
+   sv('Rendering audio… '+Math.round(f*100)+'%',f>.08?'About '+fmtT(el/f*(1-f))+' left. Keep this tab open.':'Estimating time left…',10+f*80);oc.resume()}).catch(()=>{})}
+  sv('Rendering audio… 0%','Estimating time left…',10);await nxt();
+  const buf=await oc.startRendering();
   let blob,ext=fmt;
   if(fmt=='mp3'){
-   if(window.lamejs){sv('Encoding MP3… 0%');await nxt();blob=await mp3Blob(buf)}
-   else{sv('Writing WAV…');await nxt();blob=wavBlob(buf);ext='wav';alert('MP3 encoder could not load (offline?). Saved as WAV instead.')}}
-  else{sv('Writing WAV…');await nxt();blob=wavBlob(buf)}
+   if(window.lamejs){sv('Encoding MP3… 0%','Almost done.',90);await nxt();blob=await mp3Blob(buf)}
+   else{sv('Writing WAV…','Almost done.',95);await nxt();blob=wavBlob(buf);ext='wav';alert('MP3 encoder could not load (offline?). Saved as WAV instead.')}}
+  else{sv('Writing WAV…','Almost done.',95);await nxt();blob=wavBlob(buf)}
   const a=document.createElement('a'),nm=$('name').value.trim().replace(/[^\w\- ]+/g,'')||'my-track';
   a.href=URL.createObjectURL(blob);a.download=nm+'.'+ext;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000);
-  $('svp').classList.add('done');sv('✓ Saved as '+nm+'.'+ext,'Check your downloads.');
+  $('svp').classList.add('done');sv('✓ Saved as '+nm+'.'+ext,'Check your downloads.',100);
   $('msg').textContent='Saved '+nm+'.'+ext;
   await new Promise(r=>setTimeout(r,1500));
  }catch(err){
