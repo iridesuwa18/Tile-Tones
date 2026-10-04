@@ -64,6 +64,15 @@ h1{letter-spacing:.1em}
 .mp p{margin:6px 0;line-height:1.5}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
 .ed{overflow-x:auto}
+#sv{position:fixed;inset:0;background:#1a0a30e6;z-index:30;display:grid;place-items:center;padding:12px}
+#sv[hidden]{display:none}
+.svp{background:#3a2070;border:2px solid var(--ln);border-radius:4px;padding:22px 26px;text-align:center;max-width:320px;width:100%}
+.spin{width:38px;height:38px;margin:0 auto 14px;border:4px solid #ffffff30;border-top-color:var(--pk);border-radius:50%;animation:sp 0.9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#svt{font-size:13px;color:#ffd6ee;line-height:1.5}
+#svs{margin-top:6px;color:var(--mu);font-size:11px}
+.svp.done .spin{display:none}
+button:disabled{opacity:.5;cursor:default}
 </style></head><body>
 <header>
  <h1>Tile Tones ✦</h1><button class="mk" id="mk">✦ Make a song</button>
@@ -76,6 +85,7 @@ h1{letter-spacing:.1em}
  <div class="g"><select id="ni"></select><button id="addt">Add instrument</button></div>
  <div class="g"><button id="wav">Save WAV</button><button id="mp3">Save MP3</button></div>
 </header>
+<div id="sv" hidden role="status" aria-live="polite"><div class="svp" id="svp"><div class="spin"></div><div id="svt">Saving…</div><div id="svs">Please keep this tab open.</div></div></div>
 <div id="md" hidden><div class="mp" id="mp"></div></div>
 <p id="msg">Pick a full track to start, or use + Sample on a track to drop a clip in at the cursor. Click a cell to place a note. Click a tile's top number to change its length (in beats). Sync mode stretches tiles to real time so every instrument lines up.</p>
 <div id="sc"><div id="in"></div></div>
@@ -140,17 +150,17 @@ function play(){
  const t0=AC.currentTime+.08,tot=sched(AC,m,t0,S.cur);st={t0,tot,paused:0,from:S.cur};tick()}
 function pause(){if(AC&&!st.paused){AC.suspend();st.paused=1}}
 function stop(){if(AC){AC.close();AC=null}clearPly()}
-function clearPly(){document.querySelectorAll('.col.ply').forEach(e=>e.classList.remove('ply'));$('ph')&&($('ph').style.display='none')}
+function clearPly(){$('in').querySelectorAll('.col.ply').forEach(e=>e.classList.remove('ply'));$('ph')&&($('ph').style.display='none')}
 function tick(){
  if(!AC)return;const e=AC.currentTime-st.t0;
  if(e>st.tot+(S.loop?0:.3)){if(S.loop){stop();play()}else stop();return}
  const idx=S.tracks.map(tr=>{let t=0;for(let i=st.from;i<tr.s.length;i++){t+=secs(tr.s[i]);if(e<t)return i}return -1});
- document.querySelectorAll('.col').forEach(el=>el.classList.toggle('ply',e>=0&&idx[+el.closest('.trk').dataset.t]==+el.dataset.i));
+ $('in').querySelectorAll('.col').forEach(el=>el.classList.toggle('ply',e>=0&&idx[+el.closest('.trk').dataset.t]==+el.dataset.i));
  const ph=$('ph');
  if(S.sync&&st.from==0&&e>=0){ph.style.display='block';ph.style.left=(60+e*S.bpm/60*PPB)+'px'}else ph.style.display='none';
  requestAnimationFrame(tick)}
 function go(n){const m=maxLen()-1;S.cur=Math.max(0,Math.min(m,S.cur+n));render();preview(S.cur);
- const c=document.querySelector('.col.cur');c&&c.scrollIntoView({inline:'center',block:'nearest'})}
+ const c=$('in').querySelector('.col.cur');c&&c.scrollIntoView({inline:'center',block:'nearest'})}
 
 /* ---------- UI ---------- */
 function render(){
@@ -268,21 +278,45 @@ function wavBlob(b){const ch=b.numberOfChannels,n=b.length,sr=b.sampleRate,ab=ne
  const d=Array.from({length:ch},(_,i)=>i16(b.getChannelData(i)));let p=44;
  for(let i=0;i<n;i++)for(let c=0;c<ch;c++){v.setInt16(p,d[c][i],true);p+=2}
  return new Blob([ab],{type:'audio/wav'})}
-function mp3Blob(b){const enc=new lamejs.Mp3Encoder(2,b.sampleRate,128),L=i16(b.getChannelData(0)),R=i16(b.getChannelData(b.numberOfChannels>1?1:0)),out=[];
- for(let i=0;i<L.length;i+=1152){const x=enc.encodeBuffer(L.subarray(i,i+1152),R.subarray(i,i+1152));if(x.length)out.push(x)}
+const nxt=()=>new Promise(r=>requestAnimationFrame(()=>setTimeout(r,30)));
+const sv=(t,sub)=>{$('svt').textContent=t;if(sub!=null)$('svs').textContent=sub};
+async function mp3Blob(b){const enc=new lamejs.Mp3Encoder(2,b.sampleRate,128),L=i16(b.getChannelData(0)),R=i16(b.getChannelData(b.numberOfChannels>1?1:0)),out=[];
+ for(let i=0,n=0;i<L.length;i+=1152,n++){const x=enc.encodeBuffer(L.subarray(i,i+1152),R.subarray(i,i+1152));if(x.length)out.push(x);
+  if(n%150==0){sv('Encoding MP3… '+Math.round(i/L.length*100)+'%');await nxt()}}
  out.push(enc.flush());return new Blob(out,{type:'audio/mpeg'})}
+let busy=false;
 async function exp(fmt){
- const tot=Math.max(...S.tracks.map(t=>t.s.reduce((a,s)=>a+secs(s),0)));
+ if(busy)return;
  if(!S.tracks.some(t=>t.s.some(s=>s.n.length))){alert('Add at least one note first.');return}
- $('msg').textContent='Rendering…';
- const oc=new OfflineAudioContext(2,Math.ceil(44100*(tot+2)),44100),m=mast(oc);
- sched(oc,m,.05,0);const buf=await oc.startRendering();
- let blob,ext=fmt;
- if(fmt=='mp3'){if(window.lamejs)blob=mp3Blob(buf);else{blob=wavBlob(buf);ext='wav';alert('MP3 encoder could not load (offline?). Saved as WAV instead.')}}
- else blob=wavBlob(buf);
- const a=document.createElement('a'),nm=$('name').value.trim().replace(/[^\w\- ]+/g,'')||'my-track';
- a.href=URL.createObjectURL(blob);a.download=nm+'.'+ext;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
- $('msg').textContent='Saved '+nm+'.'+ext}
+ const tot=Math.max(...S.tracks.map(t=>t.s.reduce((a,s)=>a+secs(s),0)));
+ busy=true;stop();
+ const btns=[$('wav'),$('mp3')];btns.forEach(x=>x.disabled=true);
+ $('svp').classList.remove('done');$('sv').hidden=false;
+ sv('Saving '+fmt.toUpperCase()+'…','Please keep this tab open. Long songs can take a little while.');
+ $('msg').textContent='Saving…';
+ try{
+  await nxt();
+  sv('Building your song…');await nxt();
+  const oc=new OfflineAudioContext(2,Math.ceil(44100*(tot+2)),44100),m=mast(oc);
+  sched(oc,m,.05,0);
+  const t0=Date.now(),tm=setInterval(()=>sv('Rendering audio… '+Math.round((Date.now()-t0)/1000)+'s'),500);
+  sv('Rendering audio… 0s');await nxt();
+  let buf;try{buf=await oc.startRendering()}finally{clearInterval(tm)}
+  let blob,ext=fmt;
+  if(fmt=='mp3'){
+   if(window.lamejs){sv('Encoding MP3… 0%');await nxt();blob=await mp3Blob(buf)}
+   else{sv('Writing WAV…');await nxt();blob=wavBlob(buf);ext='wav';alert('MP3 encoder could not load (offline?). Saved as WAV instead.')}}
+  else{sv('Writing WAV…');await nxt();blob=wavBlob(buf)}
+  const a=document.createElement('a'),nm=$('name').value.trim().replace(/[^\w\- ]+/g,'')||'my-track';
+  a.href=URL.createObjectURL(blob);a.download=nm+'.'+ext;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+  $('svp').classList.add('done');sv('✓ Saved as '+nm+'.'+ext,'Check your downloads.');
+  $('msg').textContent='Saved '+nm+'.'+ext;
+  await new Promise(r=>setTimeout(r,1500));
+ }catch(err){
+  $('svp').classList.add('done');sv('Could not save','Something went wrong: '+(err&&err.message||err)+'. Try a shorter song or fewer tiles.');
+  $('msg').textContent='Save failed.';
+  await new Promise(r=>setTimeout(r,3500));
+ }finally{$('sv').hidden=true;btns.forEach(x=>x.disabled=false);busy=false}}
 $('wav').onclick=()=>exp('wav');$('mp3').onclick=()=>exp('mp3');
 render();
 </script>
